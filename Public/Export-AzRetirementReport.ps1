@@ -174,9 +174,10 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     <th>Resource Type</th>
                     <th>Problem</th>
                     <th>Solution</th>
+                    <th>Resource Group</th>
                     <th>Subscription ID</th>
-                    <th>Learn More</th>
                     <th>Resource Link</th>
+                    <th>Learn More</th>
                 </tr>
             </thead>
             <tbody>
@@ -187,6 +188,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     # HTML encode all user-provided data to prevent XSS
                     $encodedResourceName = ConvertTo-HtmlEncoded $rec.ResourceName
                     $encodedResourceType = ConvertTo-HtmlEncoded $rec.ResourceType
+                    $encodedResourceGroup = ConvertTo-HtmlEncoded $rec.ResourceGroup
                     $encodedImpact = ConvertTo-HtmlEncoded $rec.Impact
                     $encodedProblem = ConvertTo-HtmlEncoded $rec.Problem
                     $encodedSolution = ConvertTo-HtmlEncoded $rec.Solution
@@ -236,9 +238,10 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     <td>$encodedResourceType</td>
                     <td>$encodedProblem</td>
                     <td>$encodedSolution</td>
+                    <td>$encodedResourceGroup</td>
                     <td><span class="recommendation-id">$encodedSubscriptionId</span></td>
-                    <td>$encodedLearnMoreLink</td>
                     <td>$encodedResourceLink</td>
+                    <td>$encodedLearnMoreLink</td>
                 </tr>
 "@
                 }

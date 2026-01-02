@@ -62,6 +62,19 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         "N/A"
                     }
 
+                    # Extract Resource Group from ResourceId
+                    $resourceGroup = if ($resourceId) {
+                        # Extract resource group name from resourceId
+                        # Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/...
+                        if ($resourceId -match '/resourceGroups/([^/]+)') {
+                            $matches[1]
+                        } else {
+                            "N/A"
+                        }
+                    } else {
+                        "N/A"
+                    }
+
                     # Build Azure Resource portal link
                     $resourceLink = if ($resourceId) {
                         "https://portal.azure.com/#resource$resourceId"
@@ -74,6 +87,7 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         ResourceId       = $resourceId
                         ResourceName     = ($resourceId -split "/")[-1]
                         ResourceType     = $resourceType
+                        ResourceGroup    = $resourceGroup
                         Category         = $rec.properties.category
                         Impact           = $rec.properties.impact
                         Problem          = $rec.properties.shortDescription.problem
