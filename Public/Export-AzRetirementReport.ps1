@@ -182,8 +182,8 @@ Exports retirement recommendations to CSV, JSON, or HTML
             <tbody>
 "@
 
-                # Add table rows
-                foreach ($rec in $allRecs) {
+                # Add table rows - collect in array for better performance
+                $tableRows = foreach ($rec in $allRecs) {
                     # HTML encode all user-provided data to prevent XSS
                     $encodedResourceName = ConvertTo-HtmlEncoded $rec.ResourceName
                     $encodedImpact = ConvertTo-HtmlEncoded $rec.Impact
@@ -200,16 +200,18 @@ Exports retirement recommendations to CSV, JSON, or HTML
                         default { "" }
                     }
                     
-                    $lastUpdated = if ($rec.LastUpdated) {
+                    # Format and encode LastUpdated timestamp
+                    $encodedLastUpdated = if ($rec.LastUpdated) {
                         try {
-                            (Get-Date $rec.LastUpdated -Format "yyyy-MM-dd HH:mm")
+                            $formatted = (Get-Date $rec.LastUpdated -Format "yyyy-MM-dd HH:mm")
+                            ConvertTo-HtmlEncoded $formatted
                         } catch {
-                            $rec.LastUpdated
+                            # Encode raw value to prevent XSS
+                            ConvertTo-HtmlEncoded $rec.LastUpdated
                         }
                     } else {
                         "N/A"
                     }
-                    $encodedLastUpdated = ConvertTo-HtmlEncoded $lastUpdated
                     
                     # Build learn more link with proper encoding and validation
                     $encodedLearnMoreLink = if ($rec.LearnMoreLink) {
@@ -225,7 +227,8 @@ Exports retirement recommendations to CSV, JSON, or HTML
                         "N/A"
                     }
                     
-                    $htmlContent += @"
+                    # Output row HTML
+                    @"
                 <tr>
                     <td class="resource-name">$encodedResourceName</td>
                     <td class="$impactClass">$encodedImpact</td>
@@ -238,6 +241,9 @@ Exports retirement recommendations to CSV, JSON, or HTML
                 </tr>
 "@
                 }
+                
+                # Join all rows efficiently
+                $htmlContent += ($tableRows -join "")
 
                 # Close HTML
                 $htmlContent += @"
