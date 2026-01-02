@@ -111,8 +111,9 @@ Describe "Token Expiration Validation" {
             # Header: {"alg":"HS256","typ":"JWT"}
             $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
             
-            # Create payload with specified expiration
-            $payloadJson = "{`"exp`":$ExpirationUnixTime}"
+            # Create payload with specified expiration using ConvertTo-Json
+            $payloadObj = @{exp = $ExpirationUnixTime}
+            $payloadJson = $payloadObj | ConvertTo-Json -Compress
             $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
             $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
             
@@ -124,8 +125,9 @@ Describe "Token Expiration Validation" {
     }
     
     BeforeEach {
-        # Clear any existing token by reimporting module
-        Import-Module "$PSScriptRoot/../AzRetirementMonitor.psd1" -Force
+        # Clear the token without reimporting the entire module
+        $module = Get-Module AzRetirementMonitor
+        & $module { $script:AccessToken = $null }
     }
     
     It "Get-AzRetirementMetadataItem should throw when not authenticated" {

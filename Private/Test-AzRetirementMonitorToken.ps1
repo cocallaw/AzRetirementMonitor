@@ -43,15 +43,15 @@ function Test-AzRetirementMonitorToken {
 
         # Check expiration time (exp claim is in Unix timestamp format)
         if ($tokenData.exp) {
-            $expirationTime = [DateTimeOffset]::FromUnixTimeSeconds($tokenData.exp).DateTime
-            $currentTime = [DateTime]::UtcNow
+            $expirationTime = [DateTimeOffset]::FromUnixTimeSeconds($tokenData.exp)
+            $currentTime = [DateTimeOffset]::UtcNow
 
             if ($currentTime -ge $expirationTime) {
-                Write-Verbose "Token has expired at $expirationTime UTC"
+                Write-Verbose "Token has expired at $($expirationTime.DateTime) UTC"
                 return $false
             }
             
-            Write-Verbose "Token is valid until $expirationTime UTC"
+            Write-Verbose "Token is valid until $($expirationTime.DateTime) UTC"
             return $true
         }
         else {
