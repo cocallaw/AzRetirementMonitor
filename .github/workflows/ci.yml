@@ -10,6 +10,8 @@ jobs:
   lint-and-test:
     name: Lint and Test PowerShell Module
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
