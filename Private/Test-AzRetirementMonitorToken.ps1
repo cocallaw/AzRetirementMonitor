@@ -45,9 +45,10 @@ function Test-AzRetirementMonitorToken {
         if ($tokenData.exp) {
             $expirationTime = [DateTimeOffset]::FromUnixTimeSeconds($tokenData.exp)
             $currentTime = [DateTimeOffset]::UtcNow
+            $expirationBuffer = [TimeSpan]::FromMinutes(5)
 
-            if ($currentTime -ge $expirationTime) {
-                Write-Verbose "Token has expired at $($expirationTime.DateTime) UTC"
+            if ($currentTime -ge $expirationTime.Subtract($expirationBuffer)) {
+                Write-Verbose "Token has expired or is about to expire at $($expirationTime.DateTime) UTC"
                 return $false
             }
             
