@@ -40,9 +40,14 @@ Gets Azure service retirement recommendations
 
             $uri = "https://management.azure.com/subscriptions/$subId/providers/Microsoft.Advisor/recommendations?api-version=$script:ApiVersion"
 
+            # Filter for HighAvailability category and ServiceUpgradeAndRetirement subcategory
+            $filter = "Category eq 'HighAvailability' and SubCategory eq 'ServiceUpgradeAndRetirement'"
+            
             if ($Category) {
-                $uri += "&`$filter=Category eq '$Category'"
+                $filter = "Category eq '$Category' and SubCategory eq 'ServiceUpgradeAndRetirement'"
             }
+            
+            $uri += "&`$filter=$filter"
 
             try {
                 $recommendations = Invoke-AzPagedRequest `

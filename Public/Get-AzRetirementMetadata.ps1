@@ -15,7 +15,9 @@ Gets Azure Advisor recommendation metadata
         "Content-Type" = "application/json"
     }
 
-    $uri = "https://management.azure.com/providers/Microsoft.Advisor/metadata?api-version=$script:ApiVersion"
+    # Filter for HighAvailability category and ServiceUpgradeAndRetirement subcategory
+    $filter = "recommendationCategory eq 'HighAvailability' and recommendationSubCategory eq 'ServiceUpgradeAndRetirement'"
+    $uri = "https://management.azure.com/providers/Microsoft.Advisor/metadata?api-version=$script:ApiVersion&`$filter=$filter"
 
     Invoke-AzPagedRequest -Uri $uri -Headers $headers |
         ForEach-Object {
