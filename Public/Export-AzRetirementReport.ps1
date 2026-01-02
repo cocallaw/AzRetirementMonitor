@@ -41,8 +41,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     return [System.Net.WebUtility]::HtmlEncode($Text)
                 }
                 
-                $generatedTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss" -AsUTC
-                $generatedTime = "$generatedTime UTC"
+                $generatedTime = (Get-Date -AsUTC).ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
                 $totalCount = $allRecs.Count
                 
                 # Define CSS for professional styling
@@ -162,7 +161,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
     <div class="container">
         <h1>Azure Service Retirement Report</h1>
         <div class="metadata">
-            <p><strong>Generated:</strong> $(ConvertTo-HtmlEncoded $generatedTime)</p>
+            <p><strong>Generated:</strong> $generatedTime</p>
             <p><strong>Total Recommendations:</strong> $totalCount</p>
             <p><strong>Report Type:</strong> Service Retirement and Upgrade Recommendations</p>
         </div>
