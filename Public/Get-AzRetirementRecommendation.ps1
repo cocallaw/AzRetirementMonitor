@@ -48,10 +48,46 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         $rec.properties.shortDescription.problem -match
                         'retire|deprecat|end of life|eol|sunset'
 
+                    # Extract ResourceType from ResourceId
+                    $resourceId = $rec.properties.resourceMetadata.resourceId
+                    $resourceType = if ($resourceId) {
+                        # Extract provider/type from resourceId
+                        # Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Compute/virtualMachines/{name}
+                        if ($resourceId -match '/providers/([^/]+/[^/]+)(?:/|$)') {
+                            $matches[1]
+                        } else {
+                            "N/A"
+                        }
+                    } else {
+                        "N/A"
+                    }
+
+                    # Extract Resource Group from ResourceId
+                    $resourceGroup = if ($resourceId) {
+                        # Extract resource group name from resourceId
+                        # Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/...
+                        if ($resourceId -match '/resourceGroups/([^/]+)') {
+                            $matches[1]
+                        } else {
+                            "N/A"
+                        }
+                    } else {
+                        "N/A"
+                    }
+
+                    # Build Azure Resource portal link
+                    $resourceLink = if ($resourceId) {
+                        "https://portal.azure.com/#resource$resourceId"
+                    } else {
+                        $null
+                    }
+
                     $allRecommendations += [PSCustomObject]@{
                         SubscriptionId   = $subId
-                        ResourceId       = $rec.properties.resourceMetadata.resourceId
-                        ResourceName     = ($rec.properties.resourceMetadata.resourceId -split "/")[-1]
+                        ResourceId       = $resourceId
+                        ResourceName     = ($resourceId -split "/")[-1]
+                        ResourceType     = $resourceType
+                        ResourceGroup    = $resourceGroup
                         Category         = $rec.properties.category
                         Impact           = $rec.properties.impact
                         Problem          = $rec.properties.shortDescription.problem
@@ -61,6 +97,7 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         IsRetirement     = $isRetirement
                         RecommendationId = $rec.name
                         LearnMoreLink    = $rec.properties.learnMoreLink
+                        ResourceLink     = $resourceLink
                     }
                 }
             }
