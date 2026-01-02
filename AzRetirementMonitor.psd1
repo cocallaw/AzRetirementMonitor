@@ -4,17 +4,18 @@
     PowerShellVersion    = '7.0'
     CompatiblePSEditions = @('Core')
 
-    FunctionsToExport = @(
+    FunctionsToExport    = @(
         'Connect-AzRetirementMonitor',
         'Get-AzRetirementRecommendations',
         'Get-AzRetirementMetadata',
         'Export-AzRetirementReport'
     )
 
-    PrivateData = @{
+    PrivateData          = @{
         PSData = @{
-            Tags       = @('Azure','Advisor','Retirement','Monitoring')
+            Tags       = @('Azure', 'Advisor', 'Retirement', 'Monitoring')
             LicenseUri = 'https://opensource.org/licenses/MIT'
+            ProjectUri = 'https://github.com/cocallaw/AzRetirementMonitor'
         }
     }
 }
