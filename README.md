@@ -95,21 +95,10 @@ Get-AzRetirementRecommendations
 
 # Get recommendations for specific subscriptions
 Get-AzRetirementRecommendations -SubscriptionId "sub-id-1", "sub-id-2"
-
-# Filter by category
-Get-AzRetirementRecommendations -Category HighAvailability
-
-# Filter by impact level
-Get-AzRetirementRecommendations -ImpactLevel High
-
-# Combine filters
-Get-AzRetirementRecommendations -Category Security -ImpactLevel Medium
 ```
 
 **Parameters:**
 - `SubscriptionId` - One or more subscription IDs (defaults to all subscriptions)
-- `Category` - Filter by Advisor category: HighAvailability, Security, Performance, Cost, OperationalExcellence
-- `ImpactLevel` - Filter by impact: High, Medium, Low
 
 ### Get-AzRetirementMetadata
 
@@ -147,7 +136,7 @@ Get-AzRetirementRecommendations | Export-AzRetirementReport -OutputPath "report.
 PS> Connect-AzRetirementMonitor
 Authenticated to Azure successfully
 
-PS> Get-AzRetirementRecommendations -ImpactLevel High
+PS> Get-AzRetirementRecommendations
 
 SubscriptionId   : 12345678-1234-1234-1234-123456789012
 ResourceId       : /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/myRG/providers/Microsoft.Compute/virtualMachines/myVM
@@ -179,8 +168,8 @@ Here's a typical workflow for monitoring Azure retirements:
 # 1. Authenticate
 Connect-AzRetirementMonitor
 
-# 2. Get high-priority retirement recommendations
-$recommendations = Get-AzRetirementRecommendations -ImpactLevel High
+# 2. Get retirement recommendations
+$recommendations = Get-AzRetirementRecommendations
 
 # 3. Review the recommendations
 $recommendations | Format-Table ResourceName, Impact, Problem, Solution
