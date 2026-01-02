@@ -256,6 +256,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Issues**: [GitHub Issues](https://github.com/cocallaw/AzRetirementMonitor/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/cocallaw/AzRetirementMonitor/discussions)
 
-## Acknowledgments
-
 This module uses the Azure Advisor API to retrieve retirement recommendations. For more information about Azure Advisor, visit the [Azure Advisor documentation](https://learn.microsoft.com/azure/advisor/).
