@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/cocallaw/AzRetirementMonitor/discussions
+    about: Ask questions or discuss ideas with the community
+  - name: Azure Advisor Documentation
+    url: https://learn.microsoft.com/azure/advisor/
+    about: Learn more about Azure Advisor and retirement recommendations
