@@ -24,11 +24,13 @@ Install-Module -Name AzRetirementMonitor -Scope CurrentUser
 ### Manual Installation
 
 1. Clone this repository:
+
    ```bash
    git clone https://github.com/cocallaw/AzRetirementMonitor.git
    ```
 
 2. Import the module:
+
    ```powershell
    Import-Module ./AzRetirementMonitor/AzRetirementMonitor.psd1
    ```
@@ -48,10 +50,13 @@ AzRetirementMonitor supports two authentication methods:
 
 1. Install the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 2. Log in to Azure:
+
    ```bash
    az login
    ```
+
 3. Connect the module:
+
    ```powershell
    Connect-AzRetirementMonitor
    ```
@@ -59,14 +64,19 @@ AzRetirementMonitor supports two authentication methods:
 ### Option 2: Az PowerShell Module
 
 1. Install Az.Accounts:
+
    ```powershell
    Install-Module -Name Az.Accounts -Scope CurrentUser
    ```
+
 2. Connect to Azure:
+
    ```powershell
    Connect-AzAccount
    ```
+
 3. Connect the module using Az PowerShell:
+
    ```powershell
    Connect-AzRetirementMonitor -UseAzPowerShell
    ```
@@ -98,6 +108,7 @@ Get-AzRetirementRecommendation -SubscriptionId "sub-id-1", "sub-id-2"
 ```
 
 **Parameters:**
+
 - `SubscriptionId` - One or more subscription IDs (defaults to all subscriptions)
 
 **Note:** This function is hardcoded to return only recommendations where Category is 'HighAvailability' and SubCategory is 'ServiceUpgradeAndRetirement'.
@@ -126,6 +137,7 @@ Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.h
 ```
 
 **Parameters:**
+
 - `Recommendations` - Recommendation objects from Get-AzRetirementRecommendation (accepts pipeline input)
 - `OutputPath` - File path for the exported report
 - `Format` - Export format: CSV, JSON, or HTML (default: CSV)
@@ -227,9 +239,11 @@ Invoke-Pester ./Tests/AzRetirementMonitor.Tests.ps1
 1. Clone the repository
 2. Make your changes in a feature branch
 3. Test locally by importing the module:
+
    ```powershell
    Import-Module ./AzRetirementMonitor.psd1 -Force
    ```
+
 4. Run tests and ensure they pass
 5. Submit a pull request
 
