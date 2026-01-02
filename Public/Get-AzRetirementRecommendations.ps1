@@ -1,18 +1,12 @@
 function Get-AzRetirementRecommendations {
 <#
 .SYNOPSIS
-Gets Azure service retirement recommendations
+Gets Azure service retirement recommendations for HighAvailability category and ServiceUpgradeAndRetirement subcategory
 #>
     [CmdletBinding()]
     param(
         [Parameter(ValueFromPipeline)]
-        [string[]]$SubscriptionId,
-
-        [ValidateSet("HighAvailability", "Security", "Performance", "Cost", "OperationalExcellence")]
-        [string]$Category,
-
-        [ValidateSet("High", "Medium", "Low")]
-        [string]$ImpactLevel
+        [string[]]$SubscriptionId
     )
 
     begin {
@@ -40,13 +34,8 @@ Gets Azure service retirement recommendations
 
             $uri = "https://management.azure.com/subscriptions/$subId/providers/Microsoft.Advisor/recommendations?api-version=$script:ApiVersion"
 
-            # Filter for HighAvailability category and ServiceUpgradeAndRetirement subcategory
+            # Filter for HighAvailability category and ServiceUpgradeAndRetirement subcategory only
             $filter = "Category eq 'HighAvailability' and SubCategory eq 'ServiceUpgradeAndRetirement'"
-            
-            if ($Category) {
-                $filter = "Category eq '$Category' and SubCategory eq 'ServiceUpgradeAndRetirement'"
-            }
-            
             $uri += "&`$filter=$filter"
 
             try {
@@ -55,11 +44,6 @@ Gets Azure service retirement recommendations
                     -Headers $headers
 
                 foreach ($rec in $recommendations) {
-
-                    if ($ImpactLevel -and $rec.properties.impact -ne $ImpactLevel) {
-                        continue
-                    }
-
                     $isRetirement =
                         $rec.properties.shortDescription.problem -match
                         'retire|deprecat|end of life|eol|sunset'
