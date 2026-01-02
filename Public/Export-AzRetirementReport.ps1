@@ -41,7 +41,8 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     return [System.Net.WebUtility]::HtmlEncode($Text)
                 }
                 
-                $generatedTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss (UTC K)"
+                $generatedTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss" -AsUTC
+                $generatedTime = "$generatedTime UTC"
                 $totalCount = $allRecs.Count
                 
                 # Define CSS for professional styling
@@ -210,8 +211,14 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     $encodedLastUpdated = ConvertTo-HtmlEncoded $lastUpdated
                     
                     $learnMoreLink = if ($rec.LearnMoreLink) {
-                        $encodedUrl = ConvertTo-HtmlEncoded $rec.LearnMoreLink
-                        "<a href='$encodedUrl' target='_blank'>Documentation</a>"
+                        $url = $rec.LearnMoreLink
+                        # Validate URL starts with http:// or https:// to prevent javascript: protocol injection
+                        if ($url -match '^https?://') {
+                            $encodedUrl = ConvertTo-HtmlEncoded $url
+                            "<a href='$encodedUrl' target='_blank' rel='noopener noreferrer'>Documentation</a>"
+                        } else {
+                            "Invalid URL"
+                        }
                     } else {
                         "N/A"
                     }
