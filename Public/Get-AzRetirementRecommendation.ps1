@@ -1,4 +1,4 @@
-function Get-AzRetirementRecommendations {
+function Get-AzRetirementRecommendation {
 <#
 .SYNOPSIS
 Gets Azure service retirement recommendations for HighAvailability category and ServiceUpgradeAndRetirement subcategory

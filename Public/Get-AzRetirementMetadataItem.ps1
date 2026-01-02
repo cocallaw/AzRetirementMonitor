@@ -1,4 +1,4 @@
-function Get-AzRetirementMetadata {
+function Get-AzRetirementMetadataItem {
 <#
 .SYNOPSIS
 Gets Azure Advisor recommendation metadata
