@@ -2,11 +2,6 @@ name: Publish to PowerShell Gallery
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to publish (optional - uses module manifest version if not specified)'
-        required: false
-        type: string
   push:
     tags:
       - 'v*'

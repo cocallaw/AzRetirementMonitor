@@ -46,9 +46,6 @@ jobs:
       - name: Run Pester Tests
         shell: pwsh
         run: |
-          # The problem statement mentions Files/AzRetirementMonitor.Tests.ps1
-          # but the actual location is Tests/AzRetirementMonitor.Tests.ps1
-          # We'll use the actual location
           $testPath = "Tests/AzRetirementMonitor.Tests.ps1"
           if (Test-Path $testPath) {
             $config = New-PesterConfiguration
