@@ -142,6 +142,20 @@ Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.h
 - `OutputPath` - File path for the exported report
 - `Format` - Export format: CSV, JSON, or HTML (default: CSV)
 
+## Understanding Impact Levels
+
+Azure Advisor assigns an impact level (High, Medium, or Low) to each recommendation to help you prioritize actions:
+
+- **High Impact**: Recommendations that can have the greatest positive effect on your environment, such as preventing service disruptions, avoiding security vulnerabilities, or addressing critical retirements. These should be addressed with highest priority.
+
+- **Medium Impact**: Meaningful improvements with moderate effect. These recommendations are important but may have more flexible timelines than high-impact items.
+
+- **Low Impact**: Beneficial optimizations with minor improvements. These are lower priority but still worth addressing when resources allow.
+
+Impact levels are determined by Azure Advisor based on factors including potential business impact, risk severity, resource usage patterns, and the scope of affected resources. For retirement recommendations specifically, the impact level reflects the urgency and criticality of migrating away from deprecated services.
+
+For more information, see [Azure Advisor documentation](https://learn.microsoft.com/azure/advisor/advisor-overview).
+
 ## Example Output
 
 ### Get-AzRetirementRecommendation

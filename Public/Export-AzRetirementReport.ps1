@@ -164,6 +164,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
             <p><strong>Generated:</strong> $generatedTime</p>
             <p><strong>Total Recommendations:</strong> $totalCount</p>
             <p><strong>Report Type:</strong> Service Retirement and Upgrade Recommendations</p>
+            <p><strong>Impact Levels:</strong> Recommendations are categorized as High (critical, address immediately), Medium (important, moderate timeline), or Low (beneficial, lower priority). <a href="https://learn.microsoft.com/azure/advisor/advisor-overview" target="_blank" rel="noopener noreferrer">Learn more about Azure Advisor impact levels</a></p>
         </div>
         <table>
             <thead>
