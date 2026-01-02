@@ -46,7 +46,7 @@ AzRetirementMonitor supports two authentication methods:
 
 ### Option 1: Azure CLI (Default)
 
-1. Install the [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
+1. Install the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 2. Log in to Azure:
    ```bash
    az login
