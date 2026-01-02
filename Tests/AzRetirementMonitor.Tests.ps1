@@ -175,4 +175,49 @@ Describe "Token Expiration Validation" {
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $true
     }
+    
+    It "Should reject token with incorrect number of segments" {
+        # Test with token that has only 2 segments (missing signature)
+        $malformedToken = "header.payload"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $malformedToken
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $false
+    }
+    
+    It "Should reject token with invalid Base64 encoding" {
+        # Token with invalid Base64 characters in payload
+        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        $invalidPayload = "!!!invalid@@@base64###"
+        $signature = "dummysignature"
+        $malformedToken = "$header.$invalidPayload.$signature"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $malformedToken
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $false
+    }
+    
+    It "Should reject token without exp claim" {
+        # Create a token with valid structure but no exp claim
+        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        
+        # Payload with only sub claim, no exp
+        $payloadObj = @{sub = "user123"; iat = 1234567890}
+        $payloadJson = $payloadObj | ConvertTo-Json -Compress
+        $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
+        $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+        
+        $signature = "dummysignature"
+        $tokenNoExp = "$header.$payload.$signature"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $tokenNoExp
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $false
+    }
 }
