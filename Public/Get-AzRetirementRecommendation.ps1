@@ -64,7 +64,7 @@ Gets Azure service retirement recommendations for HighAvailability category and 
 
                     # Build Azure Resource portal link
                     $resourceLink = if ($resourceId) {
-                        "https://portal.azure.com/#@/resource$resourceId"
+                        "https://portal.azure.com/#resource$resourceId"
                     } else {
                         $null
                     }
