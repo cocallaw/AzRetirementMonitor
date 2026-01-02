@@ -66,7 +66,7 @@ jobs:
           }
           
           $publishParams = @{
-            Path        = "."
+            Path        = "./AzRetirementMonitor.psd1"
             NuGetApiKey = $env:PSGALLERY_API_KEY
             Repository  = "PSGallery"
             Verbose     = $true
