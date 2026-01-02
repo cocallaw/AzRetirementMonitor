@@ -163,8 +163,8 @@ Describe "Token Expiration Validation" {
     }
     
     It "Should validate a token with future expiration as valid" {
-        # Create a token that expires in the future (January 1, 2030)
-        $futureTime = [DateTimeOffset]::new(2030, 1, 1, 0, 0, 0, [TimeSpan]::Zero).ToUnixTimeSeconds()
+        # Create a token that expires in the near future (relative to now)
+        $futureTime = [DateTimeOffset]::UtcNow.AddDays(1).ToUnixTimeSeconds()
         $validToken = New-TestToken -ExpirationUnixTime $futureTime
         
         # Access the module's script scope to set the token and test it
