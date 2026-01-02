@@ -169,14 +169,14 @@ Exports retirement recommendations to CSV, JSON, or HTML
         <table>
             <thead>
                 <tr>
-                    <th>Resource Name</th>
                     <th>Impact</th>
+                    <th>Resource Name</th>
+                    <th>Resource Type</th>
                     <th>Problem</th>
                     <th>Solution</th>
-                    <th>Description</th>
-                    <th>Last Updated</th>
                     <th>Subscription ID</th>
                     <th>Learn More</th>
+                    <th>Advisor Link</th>
                 </tr>
             </thead>
             <tbody>
@@ -186,10 +186,10 @@ Exports retirement recommendations to CSV, JSON, or HTML
                 $tableRows = foreach ($rec in $allRecs) {
                     # HTML encode all user-provided data to prevent XSS
                     $encodedResourceName = ConvertTo-HtmlEncoded $rec.ResourceName
+                    $encodedResourceType = ConvertTo-HtmlEncoded $rec.ResourceType
                     $encodedImpact = ConvertTo-HtmlEncoded $rec.Impact
                     $encodedProblem = ConvertTo-HtmlEncoded $rec.Problem
                     $encodedSolution = ConvertTo-HtmlEncoded $rec.Solution
-                    $encodedDescription = ConvertTo-HtmlEncoded $rec.Description
                     $encodedSubscriptionId = ConvertTo-HtmlEncoded $rec.SubscriptionId
                     
                     # Validate and sanitize CSS class name to prevent CSS injection
@@ -198,19 +198,6 @@ Exports retirement recommendations to CSV, JSON, or HTML
                         "Medium" { "impact-medium" }
                         "Low" { "impact-low" }
                         default { "" }
-                    }
-                    
-                    # Format and encode LastUpdated timestamp
-                    $encodedLastUpdated = if ($rec.LastUpdated) {
-                        try {
-                            $formatted = (Get-Date $rec.LastUpdated -Format "yyyy-MM-dd HH:mm")
-                            ConvertTo-HtmlEncoded $formatted
-                        } catch {
-                            # Encode raw value to prevent XSS
-                            ConvertTo-HtmlEncoded $rec.LastUpdated
-                        }
-                    } else {
-                        "N/A"
                     }
                     
                     # Build learn more link with proper encoding and validation
@@ -227,17 +214,31 @@ Exports retirement recommendations to CSV, JSON, or HTML
                         "N/A"
                     }
                     
+                    # Build Advisor link with proper encoding and validation
+                    $encodedAdvisorLink = if ($rec.AdvisorLink) {
+                        $url = $rec.AdvisorLink
+                        # Validate URL starts with http:// or https:// to prevent javascript: protocol injection
+                        if ($url -imatch '^https?://') {
+                            $encodedUrl = ConvertTo-HtmlEncoded $url
+                            "<a href='$encodedUrl' target='_blank' rel='noopener noreferrer'>View in Advisor</a>"
+                        } else {
+                            ConvertTo-HtmlEncoded "Invalid URL"
+                        }
+                    } else {
+                        "N/A"
+                    }
+                    
                     # Output row HTML
                     @"
                 <tr>
-                    <td class="resource-name">$encodedResourceName</td>
                     <td class="$impactClass">$encodedImpact</td>
+                    <td class="resource-name">$encodedResourceName</td>
+                    <td>$encodedResourceType</td>
                     <td>$encodedProblem</td>
                     <td>$encodedSolution</td>
-                    <td>$encodedDescription</td>
-                    <td class="timestamp">$encodedLastUpdated</td>
                     <td><span class="recommendation-id">$encodedSubscriptionId</span></td>
                     <td>$encodedLearnMoreLink</td>
+                    <td>$encodedAdvisorLink</td>
                 </tr>
 "@
                 }

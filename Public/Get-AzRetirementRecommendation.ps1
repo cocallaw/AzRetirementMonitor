@@ -48,10 +48,28 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         $rec.properties.shortDescription.problem -match
                         'retire|deprecat|end of life|eol|sunset'
 
+                    # Extract ResourceType from ResourceId
+                    $resourceId = $rec.properties.resourceMetadata.resourceId
+                    $resourceType = if ($resourceId) {
+                        # Extract provider/type from resourceId
+                        # Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Compute/virtualMachines/{name}
+                        if ($resourceId -match '/providers/([^/]+/[^/]+)(?:/|$)') {
+                            $matches[1]
+                        } else {
+                            "N/A"
+                        }
+                    } else {
+                        "N/A"
+                    }
+
+                    # Build Azure Advisor portal link
+                    $advisorLink = "https://portal.azure.com/#blade/Microsoft_Azure_Expert/RecommendationListBlade/recommendationId/$($rec.name)"
+
                     $allRecommendations += [PSCustomObject]@{
                         SubscriptionId   = $subId
-                        ResourceId       = $rec.properties.resourceMetadata.resourceId
-                        ResourceName     = ($rec.properties.resourceMetadata.resourceId -split "/")[-1]
+                        ResourceId       = $resourceId
+                        ResourceName     = ($resourceId -split "/")[-1]
+                        ResourceType     = $resourceType
                         Category         = $rec.properties.category
                         Impact           = $rec.properties.impact
                         Problem          = $rec.properties.shortDescription.problem
@@ -61,6 +79,7 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         IsRetirement     = $isRetirement
                         RecommendationId = $rec.name
                         LearnMoreLink    = $rec.properties.learnMoreLink
+                        AdvisorLink      = $advisorLink
                     }
                 }
             }
