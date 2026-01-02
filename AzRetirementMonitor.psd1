@@ -6,8 +6,8 @@
 
     FunctionsToExport    = @(
         'Connect-AzRetirementMonitor',
-        'Get-AzRetirementRecommendations',
-        'Get-AzRetirementMetadata',
+        'Get-AzRetirementRecommendation',
+        'Get-AzRetirementMetadataItem',
         'Export-AzRetirementReport'
     )
 

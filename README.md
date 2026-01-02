@@ -85,27 +85,29 @@ Connect-AzRetirementMonitor
 Connect-AzRetirementMonitor -UseAzPowerShell
 ```
 
-### Get-AzRetirementRecommendations
+### Get-AzRetirementRecommendation
 
-Retrieves Azure Advisor recommendations related to service retirements and deprecations.
+Retrieves Azure Advisor recommendations related to service retirements and deprecations. This function specifically returns only HighAvailability category recommendations with ServiceUpgradeAndRetirement subcategory.
 
 ```powershell
 # Get all retirement recommendations across all subscriptions
-Get-AzRetirementRecommendations
+Get-AzRetirementRecommendation
 
 # Get recommendations for specific subscriptions
-Get-AzRetirementRecommendations -SubscriptionId "sub-id-1", "sub-id-2"
+Get-AzRetirementRecommendation -SubscriptionId "sub-id-1", "sub-id-2"
 ```
 
 **Parameters:**
 - `SubscriptionId` - One or more subscription IDs (defaults to all subscriptions)
 
-### Get-AzRetirementMetadata
+**Note:** This function is hardcoded to return only recommendations where Category is 'HighAvailability' and SubCategory is 'ServiceUpgradeAndRetirement'.
 
-Retrieves metadata about retirement recommendation types from Azure Advisor.
+### Get-AzRetirementMetadataItem
+
+Retrieves metadata about retirement recommendation types from Azure Advisor, filtered for HighAvailability category and ServiceUpgradeAndRetirement subcategory.
 
 ```powershell
-Get-AzRetirementMetadata
+Get-AzRetirementMetadataItem
 ```
 
 ### Export-AzRetirementReport
@@ -114,29 +116,29 @@ Exports retirement recommendations to various formats for reporting and analysis
 
 ```powershell
 # Export to CSV
-Get-AzRetirementRecommendations | Export-AzRetirementReport -OutputPath "report.csv" -Format CSV
+Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.csv" -Format CSV
 
 # Export to JSON
-Get-AzRetirementRecommendations | Export-AzRetirementReport -OutputPath "report.json" -Format JSON
+Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.json" -Format JSON
 
 # Export to HTML
-Get-AzRetirementRecommendations | Export-AzRetirementReport -OutputPath "report.html" -Format HTML
+Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.html" -Format HTML
 ```
 
 **Parameters:**
-- `Recommendations` - Recommendation objects from Get-AzRetirementRecommendations (accepts pipeline input)
+- `Recommendations` - Recommendation objects from Get-AzRetirementRecommendation (accepts pipeline input)
 - `OutputPath` - File path for the exported report
 - `Format` - Export format: CSV, JSON, or HTML (default: CSV)
 
 ## Example Output
 
-### Get-AzRetirementRecommendations
+### Get-AzRetirementRecommendation
 
 ```powershell
 PS> Connect-AzRetirementMonitor
 Authenticated to Azure successfully
 
-PS> Get-AzRetirementRecommendations
+PS> Get-AzRetirementRecommendation
 
 SubscriptionId   : 12345678-1234-1234-1234-123456789012
 ResourceId       : /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/myRG/providers/Microsoft.Compute/virtualMachines/myVM
@@ -155,7 +157,7 @@ LearnMoreLink    : https://learn.microsoft.com/azure/virtual-machines/sizes-prev
 ### Export-AzRetirementReport
 
 ```powershell
-PS> Get-AzRetirementRecommendations | Export-AzRetirementReport -OutputPath "./retirement-report.html" -Format HTML
+PS> Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "./retirement-report.html" -Format HTML
 ```
 
 This creates an HTML report with all retirement recommendations, including resource details, impact levels, and actionable solutions.
@@ -169,7 +171,7 @@ Here's a typical workflow for monitoring Azure retirements:
 Connect-AzRetirementMonitor
 
 # 2. Get retirement recommendations
-$recommendations = Get-AzRetirementRecommendations
+$recommendations = Get-AzRetirementRecommendation
 
 # 3. Review the recommendations
 $recommendations | Format-Table ResourceName, Impact, Problem, Solution
@@ -178,7 +180,7 @@ $recommendations | Format-Table ResourceName, Impact, Problem, Solution
 $recommendations | Export-AzRetirementReport -OutputPath "retirement-report.csv" -Format CSV
 
 # 5. Get metadata about retirement types (optional)
-Get-AzRetirementMetadata
+Get-AzRetirementMetadataItem
 ```
 
 ## Contributing Guidelines
