@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/cocallaw/AzRetirementMonitor/discussions
     about: Ask questions or discuss ideas with the community
   - name: Azure Advisor Documentation
-    url: https://docs.microsoft.com/azure/advisor/
+    url: https://learn.microsoft.com/azure/advisor/
     about: Learn more about Azure Advisor and retirement recommendations
