@@ -100,6 +100,29 @@ Describe "Export-AzRetirementReport" {
 }
 
 Describe "Token Expiration Validation" {
+    BeforeAll {
+        # Helper function to create a test JWT token with specified expiration
+        function New-TestToken {
+            param(
+                [Parameter(Mandatory)]
+                [long]$ExpirationUnixTime
+            )
+            
+            # Header: {"alg":"HS256","typ":"JWT"}
+            $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+            
+            # Create payload with specified expiration
+            $payloadJson = "{`"exp`":$ExpirationUnixTime}"
+            $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
+            $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+            
+            # Dummy signature
+            $signature = "dummysignature"
+            
+            return "$header.$payload.$signature"
+        }
+    }
+    
     BeforeEach {
         # Clear any existing token by reimporting module
         Import-Module "$PSScriptRoot/../AzRetirementMonitor.psd1" -Force
@@ -114,21 +137,9 @@ Describe "Token Expiration Validation" {
     }
     
     It "Get-AzRetirementMetadataItem should throw when token is expired" {
-        # Create an expired token (exp claim in the past)
-        # JWT format: header.payload.signature
-        # We'll create a minimal valid JWT with an expired exp claim
-        
-        # Header: {"alg":"HS256","typ":"JWT"}
-        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-        
-        # Payload with expired timestamp (January 1, 2020)
-        # {"exp":1577836800}
-        $payload = "eyJleHAiOjE1Nzc4MzY4MDB9"
-        
-        # Dummy signature
-        $signature = "dummysignature"
-        
-        $expiredToken = "$header.$payload.$signature"
+        # Create an expired token (January 1, 2020)
+        $expiredTime = [DateTimeOffset]::new(2020, 1, 1, 0, 0, 0, [TimeSpan]::Zero).ToUnixTimeSeconds()
+        $expiredToken = New-TestToken -ExpirationUnixTime $expiredTime
         
         # Access the module's script scope to set the token
         $module = Get-Module AzRetirementMonitor
@@ -138,11 +149,9 @@ Describe "Token Expiration Validation" {
     }
     
     It "Get-AzRetirementRecommendation should throw when token is expired" {
-        # Create an expired token
-        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-        $payload = "eyJleHAiOjE1Nzc4MzY4MDB9"
-        $signature = "dummysignature"
-        $expiredToken = "$header.$payload.$signature"
+        # Create an expired token (January 1, 2020)
+        $expiredTime = [DateTimeOffset]::new(2020, 1, 1, 0, 0, 0, [TimeSpan]::Zero).ToUnixTimeSeconds()
+        $expiredToken = New-TestToken -ExpirationUnixTime $expiredTime
         
         # Access the module's script scope to set the token
         $module = Get-Module AzRetirementMonitor
@@ -152,19 +161,9 @@ Describe "Token Expiration Validation" {
     }
     
     It "Should validate a token with future expiration as valid" {
-        # Create a token that expires in the future (year 2030)
-        # exp: 1893456000 (January 1, 2030)
-        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-        
-        # Create payload with future expiration
-        # {"exp":1893456000}
-        $futureExp = [DateTimeOffset]::new(2030, 1, 1, 0, 0, 0, [TimeSpan]::Zero).ToUnixTimeSeconds()
-        $payloadJson = "{`"exp`":$futureExp}"
-        $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
-        $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
-        
-        $signature = "dummysignature"
-        $validToken = "$header.$payload.$signature"
+        # Create a token that expires in the future (January 1, 2030)
+        $futureTime = [DateTimeOffset]::new(2030, 1, 1, 0, 0, 0, [TimeSpan]::Zero).ToUnixTimeSeconds()
+        $validToken = New-TestToken -ExpirationUnixTime $futureTime
         
         # Access the module's script scope to set the token and test it
         $module = Get-Module AzRetirementMonitor

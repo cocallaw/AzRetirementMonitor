@@ -31,6 +31,10 @@ function Test-AzRetirementMonitorToken {
             0 { break }
             2 { $base64 += '==' }
             3 { $base64 += '=' }
+            default { 
+                Write-Verbose "Invalid Base64URL string length"
+                return $false
+            }
         }
 
         # Decode from Base64 and convert from JSON
