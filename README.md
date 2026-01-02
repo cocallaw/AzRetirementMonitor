@@ -149,7 +149,7 @@ Description      : Basic A-series VM sizes will be retired on August 31, 2024
 LastUpdated      : 2024-01-15T10:30:00Z
 IsRetirement     : True
 RecommendationId : abc123-def456-ghi789
-LearnMoreLink    : https://docs.microsoft.com/azure/virtual-machines/sizes-previous-gen
+LearnMoreLink    : https://learn.microsoft.com/azure/virtual-machines/sizes-previous-gen
 ```
 
 ### Export-AzRetirementReport
