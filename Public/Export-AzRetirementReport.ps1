@@ -3,7 +3,7 @@ function Export-AzRetirementReport {
 .SYNOPSIS
 Exports retirement recommendations to CSV, JSON, or HTML
 #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
     param(
         [Parameter(Mandatory, ValueFromPipeline)]
         [object[]]$Recommendations,
@@ -24,6 +24,10 @@ Exports retirement recommendations to CSV, JSON, or HTML
     }
 
     end {
+        if (-not $PSCmdlet.ShouldProcess($OutputPath, "Export $($allRecs.Count) retirement recommendation(s) as $Format")) {
+            return
+        }
+
         switch ($Format) {
             "CSV" {
                 $allRecs | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8
