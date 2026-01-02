@@ -32,6 +32,15 @@ Exports retirement recommendations to CSV, JSON, or HTML
                 $allRecs | ConvertTo-Json -Depth 10 | Out-File $OutputPath -Encoding utf8
             }
             "HTML" {
+                # Helper function to escape HTML to prevent XSS
+                function ConvertTo-HtmlEncoded {
+                    param([string]$Text)
+                    if ([string]::IsNullOrEmpty($Text)) {
+                        return $Text
+                    }
+                    return [System.Net.WebUtility]::HtmlEncode($Text)
+                }
+                
                 $generatedTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss (UTC K)"
                 $totalCount = $allRecs.Count
                 
@@ -152,8 +161,8 @@ Exports retirement recommendations to CSV, JSON, or HTML
     <div class="container">
         <h1>Azure Service Retirement Report</h1>
         <div class="metadata">
-            <p><strong>Generated:</strong> $generatedTime</p>
-            <p><strong>Total Recommendations:</strong> $totalCount</p>
+            <p><strong>Generated:</strong> $(ConvertTo-HtmlEncoded $generatedTime)</p>
+            <p><strong>Total Recommendations:</strong> $(ConvertTo-HtmlEncoded $totalCount)</p>
             <p><strong>Report Type:</strong> Service Retirement and Upgrade Recommendations</p>
         </div>
         <table>
@@ -174,6 +183,14 @@ Exports retirement recommendations to CSV, JSON, or HTML
 
                 # Add table rows
                 foreach ($rec in $allRecs) {
+                    # HTML encode all user-provided data to prevent XSS
+                    $encodedResourceName = ConvertTo-HtmlEncoded $rec.ResourceName
+                    $encodedImpact = ConvertTo-HtmlEncoded $rec.Impact
+                    $encodedProblem = ConvertTo-HtmlEncoded $rec.Problem
+                    $encodedSolution = ConvertTo-HtmlEncoded $rec.Solution
+                    $encodedDescription = ConvertTo-HtmlEncoded $rec.Description
+                    $encodedSubscriptionId = ConvertTo-HtmlEncoded $rec.SubscriptionId
+                    
                     $impactClass = switch ($rec.Impact) {
                         "High" { "impact-high" }
                         "Medium" { "impact-medium" }
@@ -190,22 +207,24 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     } else {
                         "N/A"
                     }
+                    $encodedLastUpdated = ConvertTo-HtmlEncoded $lastUpdated
                     
                     $learnMoreLink = if ($rec.LearnMoreLink) {
-                        "<a href='$($rec.LearnMoreLink)' target='_blank'>Documentation</a>"
+                        $encodedUrl = ConvertTo-HtmlEncoded $rec.LearnMoreLink
+                        "<a href='$encodedUrl' target='_blank'>Documentation</a>"
                     } else {
                         "N/A"
                     }
                     
                     $htmlContent += @"
                 <tr>
-                    <td class="resource-name">$($rec.ResourceName)</td>
-                    <td class="$impactClass">$($rec.Impact)</td>
-                    <td>$($rec.Problem)</td>
-                    <td>$($rec.Solution)</td>
-                    <td>$($rec.Description)</td>
-                    <td class="timestamp">$lastUpdated</td>
-                    <td><span class="recommendation-id">$($rec.SubscriptionId)</span></td>
+                    <td class="resource-name">$encodedResourceName</td>
+                    <td class="$impactClass">$encodedImpact</td>
+                    <td>$encodedProblem</td>
+                    <td>$encodedSolution</td>
+                    <td>$encodedDescription</td>
+                    <td class="timestamp">$encodedLastUpdated</td>
+                    <td><span class="recommendation-id">$encodedSubscriptionId</span></td>
                     <td>$learnMoreLink</td>
                 </tr>
 "@
