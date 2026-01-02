@@ -215,7 +215,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     $encodedLearnMoreLink = if ($rec.LearnMoreLink) {
                         $url = $rec.LearnMoreLink
                         # Validate URL starts with http:// or https:// to prevent javascript: protocol injection
-                        if ($url -match '^https?://') {
+                        if ($url -imatch '^https?://') {
                             $encodedUrl = ConvertTo-HtmlEncoded $url
                             "<a href='$encodedUrl' target='_blank' rel='noopener noreferrer'>Documentation</a>"
                         } else {
