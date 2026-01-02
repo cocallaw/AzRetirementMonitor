@@ -55,6 +55,24 @@ jobs:
             Write-Host "No issues found by PSScriptAnalyzer"
           }
       
+      - name: Prepare Module for Publishing
+        shell: pwsh
+        run: |
+          # Create staging directory
+          $stagingDir = "./staging/AzRetirementMonitor"
+          New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
+          
+          # Copy only the files needed for the module
+          Copy-Item -Path "./AzRetirementMonitor.psd1" -Destination $stagingDir -Force
+          Copy-Item -Path "./AzRetirementMonitor.psm1" -Destination $stagingDir -Force
+          Copy-Item -Path "./LICENSE" -Destination $stagingDir -Force
+          Copy-Item -Path "./README.md" -Destination $stagingDir -Force
+          Copy-Item -Path "./Public" -Destination $stagingDir -Recurse -Force
+          Copy-Item -Path "./Private" -Destination $stagingDir -Recurse -Force
+          
+          Write-Host "Module staged successfully at: $stagingDir"
+          Get-ChildItem -Path $stagingDir -Recurse | Select-Object FullName
+      
       - name: Publish to PowerShell Gallery
         shell: pwsh
         env:
@@ -66,7 +84,7 @@ jobs:
           }
           
           $publishParams = @{
-            Path        = "./AzRetirementMonitor.psd1"
+            Path        = "./staging/AzRetirementMonitor"
             NuGetApiKey = $env:PSGALLERY_API_KEY
             Repository  = "PSGallery"
             Verbose     = $true
