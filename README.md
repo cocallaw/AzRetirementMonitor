@@ -242,4 +242,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-This module uses the Azure Advisor API to retrieve retirement recommendations. For more information about Azure Advisor, visit the [Azure Advisor documentation](https://docs.microsoft.com/azure/advisor/).
+This module uses the Azure Advisor API to retrieve retirement recommendations. For more information about Azure Advisor, visit the [Azure Advisor documentation](https://learn.microsoft.com/azure/advisor/).
