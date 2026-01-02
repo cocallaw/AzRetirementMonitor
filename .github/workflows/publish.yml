@@ -1,0 +1,83 @@
+name: Publish to PowerShell Gallery
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (optional - uses module manifest version if not specified)'
+        required: false
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    name: Publish Module to PowerShell Gallery
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup PowerShell
+        shell: pwsh
+        run: |
+          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+      
+      - name: Verify Module Manifest
+        shell: pwsh
+        run: |
+          $manifestPath = "./AzRetirementMonitor.psd1"
+          if (-not (Test-Path $manifestPath)) {
+            Write-Error "Module manifest not found at: $manifestPath"
+            exit 1
+          }
+          
+          $manifest = Test-ModuleManifest -Path $manifestPath
+          Write-Host "Module: $($manifest.Name)"
+          Write-Host "Version: $($manifest.Version)"
+          Write-Host "Author: $($manifest.Author)"
+          Write-Host "Description: $($manifest.Description)"
+      
+      - name: Install PSScriptAnalyzer (Pre-publish validation)
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+      
+      - name: Run PSScriptAnalyzer (Pre-publish validation)
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings PSGallery
+          if ($results) {
+            $results | Format-Table -AutoSize
+            Write-Warning "PSScriptAnalyzer found $($results.Count) issue(s). Review before publishing."
+          } else {
+            Write-Host "No issues found by PSScriptAnalyzer"
+          }
+      
+      - name: Publish to PowerShell Gallery
+        shell: pwsh
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:PSGALLERY_API_KEY)) {
+            Write-Error "PowerShell Gallery API Key not found. Please set PSGALLERY_API_KEY secret in repository settings."
+            exit 1
+          }
+          
+          $publishParams = @{
+            Path        = "."
+            NuGetApiKey = $env:PSGALLERY_API_KEY
+            Repository  = "PSGallery"
+            Verbose     = $true
+          }
+          
+          try {
+            Publish-Module @publishParams
+            Write-Host "Module published successfully to PowerShell Gallery"
+          } catch {
+            Write-Error "Failed to publish module: $_"
+            exit 1
+          }
