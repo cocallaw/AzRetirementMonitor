@@ -62,8 +62,12 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         "N/A"
                     }
 
-                    # Build Azure Advisor portal link
-                    $advisorLink = "https://portal.azure.com/#blade/Microsoft_Azure_Expert/RecommendationListBlade/recommendationId/$($rec.name)"
+                    # Build Azure Resource portal link
+                    $resourceLink = if ($resourceId) {
+                        "https://portal.azure.com/#@/resource$resourceId"
+                    } else {
+                        $null
+                    }
 
                     $allRecommendations += [PSCustomObject]@{
                         SubscriptionId   = $subId
@@ -79,7 +83,7 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         IsRetirement     = $isRetirement
                         RecommendationId = $rec.name
                         LearnMoreLink    = $rec.properties.learnMoreLink
-                        AdvisorLink      = $advisorLink
+                        ResourceLink     = $resourceLink
                     }
                 }
             }

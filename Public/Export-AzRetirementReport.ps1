@@ -176,7 +176,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     <th>Solution</th>
                     <th>Subscription ID</th>
                     <th>Learn More</th>
-                    <th>Advisor Link</th>
+                    <th>Resource Link</th>
                 </tr>
             </thead>
             <tbody>
@@ -214,13 +214,13 @@ Exports retirement recommendations to CSV, JSON, or HTML
                         "N/A"
                     }
                     
-                    # Build Advisor link with proper encoding and validation
-                    $encodedAdvisorLink = if ($rec.AdvisorLink) {
-                        $url = $rec.AdvisorLink
+                    # Build Resource link with proper encoding and validation
+                    $encodedResourceLink = if ($rec.ResourceLink) {
+                        $url = $rec.ResourceLink
                         # Validate URL starts with http:// or https:// to prevent javascript: protocol injection
                         if ($url -imatch '^https?://') {
                             $encodedUrl = ConvertTo-HtmlEncoded $url
-                            "<a href='$encodedUrl' target='_blank' rel='noopener noreferrer'>View in Advisor</a>"
+                            "<a href='$encodedUrl' target='_blank' rel='noopener noreferrer'>View Resource</a>"
                         } else {
                             ConvertTo-HtmlEncoded "Invalid URL"
                         }
@@ -238,7 +238,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     <td>$encodedSolution</td>
                     <td><span class="recommendation-id">$encodedSubscriptionId</span></td>
                     <td>$encodedLearnMoreLink</td>
-                    <td>$encodedAdvisorLink</td>
+                    <td>$encodedResourceLink</td>
                 </tr>
 "@
                 }
