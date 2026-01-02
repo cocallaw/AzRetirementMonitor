@@ -163,7 +163,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
         <h1>Azure Service Retirement Report</h1>
         <div class="metadata">
             <p><strong>Generated:</strong> $(ConvertTo-HtmlEncoded $generatedTime)</p>
-            <p><strong>Total Recommendations:</strong> $(ConvertTo-HtmlEncoded $totalCount)</p>
+            <p><strong>Total Recommendations:</strong> $totalCount</p>
             <p><strong>Report Type:</strong> Service Retirement and Upgrade Recommendations</p>
         </div>
         <table>
@@ -192,6 +192,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     $encodedDescription = ConvertTo-HtmlEncoded $rec.Description
                     $encodedSubscriptionId = ConvertTo-HtmlEncoded $rec.SubscriptionId
                     
+                    # Validate and sanitize CSS class name to prevent CSS injection
                     $impactClass = switch ($rec.Impact) {
                         "High" { "impact-high" }
                         "Medium" { "impact-medium" }
@@ -210,14 +211,15 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     }
                     $encodedLastUpdated = ConvertTo-HtmlEncoded $lastUpdated
                     
-                    $learnMoreLink = if ($rec.LearnMoreLink) {
+                    # Build learn more link with proper encoding and validation
+                    $encodedLearnMoreLink = if ($rec.LearnMoreLink) {
                         $url = $rec.LearnMoreLink
                         # Validate URL starts with http:// or https:// to prevent javascript: protocol injection
                         if ($url -match '^https?://') {
                             $encodedUrl = ConvertTo-HtmlEncoded $url
                             "<a href='$encodedUrl' target='_blank' rel='noopener noreferrer'>Documentation</a>"
                         } else {
-                            "Invalid URL"
+                            ConvertTo-HtmlEncoded "Invalid URL"
                         }
                     } else {
                         "N/A"
@@ -232,7 +234,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     <td>$encodedDescription</td>
                     <td class="timestamp">$encodedLastUpdated</td>
                     <td><span class="recommendation-id">$encodedSubscriptionId</span></td>
-                    <td>$learnMoreLink</td>
+                    <td>$encodedLearnMoreLink</td>
                 </tr>
 "@
                 }
