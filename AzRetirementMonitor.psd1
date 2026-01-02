@@ -1,6 +1,6 @@
 @{
     RootModule           = 'AzRetirementMonitor.psm1'
-    ModuleVersion        = '1.0.0'
+    ModuleVersion        = '1.0.1'
     GUID                 = '6775bae9-a3ec-43de-abd9-14308dd345c4'
     Author               = 'Corey Callaway'
     CompanyName          = 'Independent'
