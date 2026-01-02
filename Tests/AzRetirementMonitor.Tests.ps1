@@ -98,3 +98,80 @@ Describe "Export-AzRetirementReport" {
         $param.Attributes.Where({$_.ValueFromPipeline}).Count | Should -BeGreaterThan 0
     }
 }
+
+Describe "Token Expiration Validation" {
+    BeforeEach {
+        # Clear any existing token by reimporting module
+        Import-Module "$PSScriptRoot/../AzRetirementMonitor.psd1" -Force
+    }
+    
+    It "Get-AzRetirementMetadataItem should throw when not authenticated" {
+        { Get-AzRetirementMetadataItem -ErrorAction Stop } | Should -Throw "*Not authenticated*"
+    }
+    
+    It "Get-AzRetirementRecommendation should throw when not authenticated" {
+        { Get-AzRetirementRecommendation -ErrorAction Stop } | Should -Throw "*Not authenticated*"
+    }
+    
+    It "Get-AzRetirementMetadataItem should throw when token is expired" {
+        # Create an expired token (exp claim in the past)
+        # JWT format: header.payload.signature
+        # We'll create a minimal valid JWT with an expired exp claim
+        
+        # Header: {"alg":"HS256","typ":"JWT"}
+        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        
+        # Payload with expired timestamp (January 1, 2020)
+        # {"exp":1577836800}
+        $payload = "eyJleHAiOjE1Nzc4MzY4MDB9"
+        
+        # Dummy signature
+        $signature = "dummysignature"
+        
+        $expiredToken = "$header.$payload.$signature"
+        
+        # Access the module's script scope to set the token
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $expiredToken
+        
+        { Get-AzRetirementMetadataItem -ErrorAction Stop } | Should -Throw "*expired*"
+    }
+    
+    It "Get-AzRetirementRecommendation should throw when token is expired" {
+        # Create an expired token
+        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        $payload = "eyJleHAiOjE1Nzc4MzY4MDB9"
+        $signature = "dummysignature"
+        $expiredToken = "$header.$payload.$signature"
+        
+        # Access the module's script scope to set the token
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $expiredToken
+        
+        { Get-AzRetirementRecommendation -ErrorAction Stop } | Should -Throw "*expired*"
+    }
+    
+    It "Should validate a token with future expiration as valid" {
+        # Create a token that expires in the future (year 2030)
+        # exp: 1893456000 (January 1, 2030)
+        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        
+        # Create payload with future expiration
+        # {"exp":1893456000}
+        $futureExp = [DateTimeOffset]::new(2030, 1, 1, 0, 0, 0, [TimeSpan]::Zero).ToUnixTimeSeconds()
+        $payloadJson = "{`"exp`":$futureExp}"
+        $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
+        $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+        
+        $signature = "dummysignature"
+        $validToken = "$header.$payload.$signature"
+        
+        # Access the module's script scope to set the token and test it
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $validToken
+        
+        # Call the private Test function to verify the token is valid
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $true
+    }
+}
