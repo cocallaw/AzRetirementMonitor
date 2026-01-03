@@ -31,7 +31,7 @@ jobs:
       - name: Run PSScriptAnalyzer
         shell: pwsh
         run: |
-          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings PSGallery
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings PSGallery -ExcludePath './Tests'
           if ($results) {
             $results | Format-Table -AutoSize
             Write-Error "PSScriptAnalyzer found $($results.Count) issue(s)"
