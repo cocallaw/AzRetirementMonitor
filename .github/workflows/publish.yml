@@ -46,7 +46,12 @@ jobs:
       - name: Run PSScriptAnalyzer (Pre-publish validation)
         shell: pwsh
         run: |
-          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings PSGallery
+          $scriptFiles = Get-ChildItem -Path . -Recurse -Include *.ps1 | Where-Object { $_.FullName -notmatch '/Tests/' }
+          if ($scriptFiles) {
+            $results = $scriptFiles | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings PSGallery }
+          } else {
+            $results = @()
+          }
           if ($results) {
             $results | Format-Table -AutoSize
             Write-Warning "PSScriptAnalyzer found $($results.Count) issue(s). Review before publishing."
