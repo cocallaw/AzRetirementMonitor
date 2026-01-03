@@ -33,7 +33,7 @@ jobs:
         run: |
           $scriptFiles = Get-ChildItem -Path . -Recurse -Include *.ps1 | Where-Object { $_.FullName -notmatch '/Tests/' }
           if ($scriptFiles) {
-            $results = Invoke-ScriptAnalyzer -Path $scriptFiles.FullName -Settings PSGallery
+            $results = $scriptFiles | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings PSGallery }
           } else {
             $results = @()
           }
