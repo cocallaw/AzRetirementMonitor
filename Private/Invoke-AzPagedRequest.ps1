@@ -8,7 +8,7 @@ function Invoke-AzPagedRequest {
         [hashtable]$Headers
     )
 
-    $results = @()
+    $results = [System.Collections.Generic.List[object]]::new()
     $nextUri = $Uri
 
     while ($nextUri) {
@@ -21,11 +21,11 @@ function Invoke-AzPagedRequest {
             -ErrorAction Stop
 
         if ($response.value) {
-            $results += $response.value
+            $results.AddRange($response.value)
         }
 
         $nextUri = $response.nextLink
     }
 
-    return $results
+    return $results.ToArray()
 }

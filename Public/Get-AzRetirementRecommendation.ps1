@@ -23,7 +23,7 @@ Gets Azure service retirement recommendations for HighAvailability category and 
             "Content-Type" = "application/json"
         }
 
-        $allRecommendations = @()
+        $allRecommendations = [System.Collections.Generic.List[object]]::new()
     }
 
     process {
@@ -86,7 +86,7 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         $null
                     }
 
-                    $allRecommendations += [PSCustomObject]@{
+                    $allRecommendations.Add([PSCustomObject]@{
                         SubscriptionId   = $subId
                         ResourceId       = $resourceId
                         ResourceName     = ($resourceId -split "/")[-1]
@@ -102,7 +102,7 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         RecommendationId = $rec.name
                         LearnMoreLink    = $rec.properties.learnMoreLink
                         ResourceLink     = $resourceLink
-                    }
+                    })
                 }
             }
             catch {
@@ -112,6 +112,6 @@ Gets Azure service retirement recommendations for HighAvailability category and 
     }
 
     end {
-        return $allRecommendations
+        return $allRecommendations.ToArray()
     }
 }
