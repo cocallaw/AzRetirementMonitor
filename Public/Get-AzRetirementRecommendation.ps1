@@ -14,6 +14,10 @@ Gets Azure service retirement recommendations for HighAvailability category and 
             throw "Not authenticated. Run Connect-AzRetirementMonitor first."
         }
 
+        if (-not (Test-AzRetirementMonitorToken)) {
+            throw "Access token has expired. Run Connect-AzRetirementMonitor again."
+        }
+
         $headers = @{
             Authorization  = "Bearer $script:AccessToken"
             "Content-Type" = "application/json"

@@ -98,3 +98,126 @@ Describe "Export-AzRetirementReport" {
         $param.Attributes.Where({$_.ValueFromPipeline}).Count | Should -BeGreaterThan 0
     }
 }
+
+Describe "Token Expiration Validation" {
+    BeforeAll {
+        # Helper function to create a test JWT token with specified expiration
+        function New-TestToken {
+            param(
+                [Parameter(Mandatory)]
+                [long]$ExpirationUnixTime
+            )
+            
+            # Header: {"alg":"HS256","typ":"JWT"}
+            $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+            
+            # Create payload with specified expiration using ConvertTo-Json
+            $payloadObj = @{exp = $ExpirationUnixTime}
+            $payloadJson = $payloadObj | ConvertTo-Json -Compress
+            $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
+            $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+            
+            # Dummy signature
+            $signature = "dummysignature"
+            
+            return "$header.$payload.$signature"
+        }
+    }
+    
+    BeforeEach {
+        # Clear the token without reimporting the entire module
+        $module = Get-Module AzRetirementMonitor
+        & $module { $script:AccessToken = $null }
+    }
+    
+    It "Get-AzRetirementMetadataItem should throw when not authenticated" {
+        { Get-AzRetirementMetadataItem -ErrorAction Stop } | Should -Throw "*Not authenticated*"
+    }
+    
+    It "Get-AzRetirementRecommendation should throw when not authenticated" {
+        { Get-AzRetirementRecommendation -ErrorAction Stop } | Should -Throw "*Not authenticated*"
+    }
+    
+    It "Get-AzRetirementMetadataItem should throw when token is expired" {
+        # Create an expired token (January 1, 2020)
+        $expiredTime = [DateTimeOffset]::new(2020, 1, 1, 0, 0, 0, [TimeSpan]::Zero).ToUnixTimeSeconds()
+        $expiredToken = New-TestToken -ExpirationUnixTime $expiredTime
+        
+        # Access the module's script scope to set the token
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $expiredToken
+        
+        { Get-AzRetirementMetadataItem -ErrorAction Stop } | Should -Throw "*expired*"
+    }
+    
+    It "Get-AzRetirementRecommendation should throw when token is expired" {
+        # Create an expired token (January 1, 2020)
+        $expiredTime = [DateTimeOffset]::new(2020, 1, 1, 0, 0, 0, [TimeSpan]::Zero).ToUnixTimeSeconds()
+        $expiredToken = New-TestToken -ExpirationUnixTime $expiredTime
+        
+        # Access the module's script scope to set the token
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $expiredToken
+        
+        { Get-AzRetirementRecommendation -ErrorAction Stop } | Should -Throw "*expired*"
+    }
+    
+    It "Should validate a token with future expiration as valid" {
+        # Create a token that expires in the near future (relative to now)
+        $futureTime = [DateTimeOffset]::UtcNow.AddDays(1).ToUnixTimeSeconds()
+        $validToken = New-TestToken -ExpirationUnixTime $futureTime
+        
+        # Access the module's script scope to set the token and test it
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $validToken
+        
+        # Call the private Test function to verify the token is valid
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $true
+    }
+    
+    It "Should reject token with incorrect number of segments" {
+        # Test with token that has only 2 segments (missing signature)
+        $malformedToken = "header.payload"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $malformedToken
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $false
+    }
+    
+    It "Should reject token with invalid Base64 encoding" {
+        # Token with invalid Base64 characters in payload
+        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        $invalidPayload = "!!!invalid@@@base64###"
+        $signature = "dummysignature"
+        $malformedToken = "$header.$invalidPayload.$signature"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $malformedToken
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $false
+    }
+    
+    It "Should reject token without exp claim" {
+        # Create a token with valid structure but no exp claim
+        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        
+        # Payload with only sub claim, no exp
+        $payloadObj = @{sub = "user123"; iat = 1234567890}
+        $payloadJson = $payloadObj | ConvertTo-Json -Compress
+        $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
+        $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+        
+        $signature = "dummysignature"
+        $tokenNoExp = "$header.$payload.$signature"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $tokenNoExp
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $false
+    }
+}
