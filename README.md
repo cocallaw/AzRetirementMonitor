@@ -81,188 +81,6 @@ AzRetirementMonitor supports two authentication methods:
    Connect-AzRetirementMonitor -UseAzPowerShell
    ```
 
-## How Does Authentication and Token Management Work?
-
-### Security Model
-
-AzRetirementMonitor uses a **read-only, scoped token** approach to ensure security and isolation:
-
-1. **Token Acquisition**: The module obtains a time-limited access token from your existing Azure authentication:
-   - **Azure CLI**: Uses `az account get-access-token` to request a token from your logged-in session
-   - **Az.Accounts**: Uses `Get-AzAccessToken` to request a token from your connected context
-   
-2. **Token Storage**: The token is stored in a **module-scoped variable** (`$script:AccessToken`):
-   - Only accessible within the AzRetirementMonitor module
-   - Not accessible to other PowerShell modules or sessions
-   - Stored in plain text in memory (acceptable for short-lived session tokens)
-   - Automatically cleared when the module is unloaded
-   - Can be manually cleared with `Disconnect-AzRetirementMonitor`
-   - Not persisted to disk or any external storage
-
-3. **Token Scope**: The token is requested specifically for `https://management.azure.com`:
-   - Only grants access to Azure Resource Manager APIs
-   - Used exclusively for **read-only** operations (Azure Advisor recommendations)
-   - Cannot be used to modify Azure resources
-   - The module validates the token's audience (aud) claim before each API call
-   - Tokens scoped to other resources (e.g., Microsoft Graph) are automatically rejected
-   - Token expiration is checked before each use (with 5-minute safety buffer)
-
-**Note**: Azure does not provide resource-specific OAuth scopes for individual Azure Resource Manager APIs (like Azure Advisor). All ARM API calls use the same token scope (`https://management.azure.com`). However, actual permissions are controlled by Azure RBAC role assignments, allowing you to limit what the authenticated user can access. See the "Security Best Practices" section below for guidance on implementing least privilege access.
-
-4. **Token Validation**: Before each API call, the module validates:
-   - **Token format**: Must be a valid JWT with three parts (header.payload.signature)
-   - **Audience claim**: Must be `https://management.azure.com` or `https://management.core.windows.net` (legacy endpoint for backward compatibility)
-   - **Expiration claim**: Must not be expired (checked with 5-minute buffer for clock skew)
-   - Invalid or expired tokens trigger an error requiring re-authentication
-
-5. **Module Isolation**: The module's authentication is completely isolated:
-   - `Connect-AzRetirementMonitor` **does not** authenticate you to Azure (you must already be logged in)
-   - `Connect-AzRetirementMonitor` **only** requests an access token from your existing session
-   - `Disconnect-AzRetirementMonitor` **only** clears the module's stored token
-   - `Disconnect-AzRetirementMonitor` **does not** affect your Azure CLI or Az.Accounts session
-   - You remain logged in to Azure CLI (`az login`) or Az.Accounts (`Connect-AzAccount`) after disconnecting
-
-### Token Lifecycle
-
-```powershell
-# You authenticate to Azure first (outside the module)
-az login  # or Connect-AzAccount
-
-# Module requests a token from your session (does not re-authenticate)
-Connect-AzRetirementMonitor
-
-# Module uses the token for API calls
-Get-AzRetirementRecommendation
-
-# Module clears its token (you remain logged in to Azure)
-Disconnect-AzRetirementMonitor
-
-# You can still use Azure CLI/PowerShell
-az account show  # Still works - you're still logged in
-```
-
-### Security Best Practices
-
-To implement the principle of least privilege when using AzRetirementMonitor:
-
-#### 1. Required Azure RBAC Permissions
-
-The module only requires **read-only** permissions. The minimum RBAC permissions needed are:
-
-- `Microsoft.Advisor/recommendations/read` - Read Azure Advisor recommendations
-- `Microsoft.Advisor/metadata/read` - Read Azure Advisor metadata
-- `Microsoft.Resources/subscriptions/read` - List subscriptions (only if querying all subscriptions)
-
-#### 2. Recommended RBAC Role Assignment
-
-Assign the built-in **Reader** role at the minimum necessary scope:
-
-```bash
-# Option 1: Subscription scope (recommended for most scenarios)
-az role assignment create \
-  --assignee user@example.com \
-  --role Reader \
-  --scope /subscriptions/{subscription-id}
-
-# Option 2: Resource Group scope (most restrictive)
-az role assignment create \
-  --assignee user@example.com \
-  --role Reader \
-  --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group-name}
-```
-
-**Why Reader role?** The Reader role provides the minimum permissions needed to view Azure Advisor recommendations without granting any write, modify, or delete capabilities.
-
-#### 3. Using a Custom RBAC Role (Advanced)
-
-For maximum restriction, create a custom role with only the exact permissions needed:
-
-```bash
-# Create custom role definition
-az role definition create --role-definition '{
-  "Name": "Azure Advisor Reader",
-  "Description": "Can read Azure Advisor recommendations only",
-  "Actions": [
-    "Microsoft.Advisor/recommendations/read",
-    "Microsoft.Advisor/metadata/read",
-    "Microsoft.Resources/subscriptions/read"
-  ],
-  "NotActions": [],
-  "AssignableScopes": [
-    "/subscriptions/{subscription-id}"
-  ]
-}'
-
-# Assign the custom role
-az role assignment create \
-  --assignee user@example.com \
-  --role "Azure Advisor Reader" \
-  --scope /subscriptions/{subscription-id}
-```
-
-#### 4. Token Scope Limitations
-
-**Important**: While the OAuth token is scoped to `https://management.azure.com` (which covers all Azure Resource Manager APIs), the actual operations the module can perform are limited by:
-
-1. **RBAC Permissions**: Azure evaluates every API call against the user's assigned RBAC roles
-2. **Module Design**: The module only makes read-only calls to Azure Advisor endpoints
-3. **Token Validation**: The module validates that tokens have the correct audience claim
-
-Even though the token technically grants access to the entire Azure Resource Manager API, if you assign only the Reader role (or the custom role above), the authenticated user cannot:
-- Modify or delete resources
-- Create new resources  
-- Access APIs outside their assigned RBAC permissions
-- Dismiss or postpone Advisor recommendations (requires Contributor role)
-
-This defense-in-depth approach ensures security even if the token were somehow used outside the module.
-
-#### 5. Additional Security Recommendations
-
-- **Use service principals** for automation scenarios instead of user accounts
-- **Enable conditional access policies** to restrict where authentication can occur
-- **Regularly review role assignments** to ensure least privilege is maintained
-- **Use managed identities** when running on Azure compute resources
-- **Monitor audit logs** for unexpected API calls using Azure Monitor
-- **Rotate credentials regularly** if using service principals with client secrets
-
-#### 6. JWT Token Handling Best Practices
-
-This module follows JWT security best practices:
-
-**What the module validates:**
-- ✅ Token structure (must have header.payload.signature format)
-- ✅ Audience claim (`aud`) - ensures token is for Azure Resource Manager
-- ✅ Expiration claim (`exp`) - checks token hasn't expired (with 5-minute buffer)
-- ✅ Token format (Base64URL encoding validation)
-
-**What the module does NOT validate (and why):**
-- ❌ **Token signature**: Not validated because tokens come from trusted Azure sources (Azure CLI or Az.Accounts) and are validated by Azure when used for API calls
-- ❌ **Issuer claim**: Not validated because all tokens come from Azure AD/Entra ID
-- ❌ **Not-before claim**: Not necessary as we check expiration with buffer
-
-**Token security measures:**
-- Tokens are short-lived (typically 1 hour) - limited exposure window
-- Tokens are stored in module scope only - not accessible to other code
-- Tokens are not persisted to disk or any external storage
-- Tokens are cleared on disconnect or module unload
-- Token validation occurs before every API call
-
-
-### What the Module Cannot Do
-
-For security and transparency, the module is designed with strict limitations:
-
-- ❌ Cannot authenticate you to Azure (requires existing `az login` or `Connect-AzAccount`)
-- ❌ Cannot modify, create, or delete Azure resources (only uses read-only API operations)
-- ❌ Cannot access tokens or credentials from other modules
-- ❌ Cannot persist tokens beyond the PowerShell session
-- ❌ Cannot disconnect you from Azure CLI or Az.Accounts
-- ❌ Cannot accept tokens scoped to resources other than Azure Resource Manager
-- ✅ Can only read Azure Advisor recommendations and metadata for retirement planning
-- ✅ Validates token audience to ensure proper scoping to `https://management.azure.com`
-
-**Security Note**: While the OAuth token is scoped to the entire Azure Resource Manager API (`https://management.azure.com`), actual access is controlled by Azure RBAC. Assigning the Reader role (or a custom role with only Advisor read permissions) ensures the authenticated user cannot perform any write operations, even if they tried to use the token outside this module.
-
 ## What Commands Are Available?
 
 ### Connect-AzRetirementMonitor
@@ -272,6 +90,7 @@ Authenticates to Azure and obtains an access token for subsequent API calls.
 The token is validated to ensure it's scoped to `https://management.azure.com` and is used exclusively for read-only Azure Advisor operations.
 
 **Parameters:**
+
 - `-UseAzCLI` (default): Use Azure CLI authentication
 - `-UseAzPowerShell`: Use Az.Accounts PowerShell module authentication
 
@@ -387,6 +206,10 @@ PS> Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "./re
 
 This creates an HTML report with all retirement recommendations, including resource details, impact levels, and actionable solutions.
 
+**Example HTML Report:**
+
+![Example HTML Report](images/example-html-report.png)
+
 ## Usage Workflow
 
 Here's a typical workflow for monitoring Azure retirements:
@@ -410,6 +233,65 @@ Get-AzRetirementMetadataItem
 # 6. Disconnect when finished (optional)
 Disconnect-AzRetirementMonitor
 ```
+
+## How Does Authentication and Token Management Work?
+
+### Security Model
+
+AzRetirementMonitor uses a **read-only, scoped token** approach to ensure security and isolation:
+
+1. **Token Acquisition**: The module obtains a time-limited access token from your existing Azure authentication:
+   - **Azure CLI**: Uses `az account get-access-token` to request a token from your logged-in session
+   - **Az.Accounts**: Uses `Get-AzAccessToken` to request a token from your connected context
+   - The module does **not** prompt for credentials or re-authenticate you
+
+2. **Token Storage**: The token is stored in a **module-scoped variable** (`$script:AccessToken`):
+   - Only accessible within the AzRetirementMonitor module
+   - Not accessible to other PowerShell modules or sessions
+   - Automatically cleared when the module is unloaded
+   - Can be manually cleared with `Disconnect-AzRetirementMonitor`
+
+3. **Token Scope**: The token is requested specifically for `https://management.azure.com`:
+   - Only grants access to Azure Resource Manager APIs
+   - Used exclusively for **read-only** operations (Azure Advisor recommendations)
+   - Cannot be used to modify Azure resources
+
+4. **Module Isolation**: The module's authentication is completely isolated:
+   - `Connect-AzRetirementMonitor` **does not** authenticate you to Azure (you must already be logged in)
+   - `Connect-AzRetirementMonitor` **only** requests an access token from your existing session
+   - `Disconnect-AzRetirementMonitor` **only** clears the module's stored token
+   - `Disconnect-AzRetirementMonitor` **does not** affect your Azure CLI or Az.Accounts session
+   - You remain logged in to Azure CLI (`az login`) or Az.Accounts (`Connect-AzAccount`) after disconnecting
+
+### Token Lifecycle
+
+```powershell
+# You authenticate to Azure first (outside the module)
+az login  # or Connect-AzAccount
+
+# Module requests a token from your session (does not re-authenticate)
+Connect-AzRetirementMonitor
+
+# Module uses the token for API calls
+Get-AzRetirementRecommendation
+
+# Module clears its token (you remain logged in to Azure)
+Disconnect-AzRetirementMonitor
+
+# You can still use Azure CLI/PowerShell
+az account show  # Still works - you're still logged in
+```
+
+### What the Module Cannot Do
+
+For security and transparency, the module is designed with strict limitations:
+
+- ❌ Cannot authenticate you to Azure (requires existing `az login` or `Connect-AzAccount`)
+- ❌ Cannot modify, create, or delete Azure resources
+- ❌ Cannot access tokens or credentials from other modules
+- ❌ Cannot persist tokens beyond the PowerShell session
+- ❌ Cannot disconnect you from Azure CLI or Az.Accounts
+- ✅ Can only read Azure Advisor recommendations for retirement planning
 
 ## Contributing Guidelines
 
