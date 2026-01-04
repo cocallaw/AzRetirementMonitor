@@ -101,6 +101,10 @@ AzRetirementMonitor uses a **read-only, scoped token** approach to ensure securi
    - Only grants access to Azure Resource Manager APIs
    - Used exclusively for **read-only** operations (Azure Advisor recommendations)
    - Cannot be used to modify Azure resources
+   - The module validates the token's audience claim to ensure it's properly scoped
+   - Tokens scoped to other resources (e.g., Microsoft Graph) are rejected
+
+**Note**: Azure does not provide resource-specific OAuth scopes for individual Azure Resource Manager APIs (like Azure Advisor). All ARM API calls use the same token scope (`https://management.azure.com`). However, actual permissions are controlled by Azure RBAC role assignments, allowing you to limit what the authenticated user can access. See the "Security Best Practices" section below for guidance on implementing least privilege access.
 
 4. **Module Isolation**: The module's authentication is completely isolated:
    - `Connect-AzRetirementMonitor` **does not** authenticate you to Azure (you must already be logged in)
@@ -128,16 +132,104 @@ Disconnect-AzRetirementMonitor
 az account show  # Still works - you're still logged in
 ```
 
+### Security Best Practices
+
+To implement the principle of least privilege when using AzRetirementMonitor:
+
+#### 1. Required Azure RBAC Permissions
+
+The module only requires **read-only** permissions. The minimum RBAC permissions needed are:
+
+- `Microsoft.Advisor/recommendations/read` - Read Azure Advisor recommendations
+- `Microsoft.Advisor/metadata/read` - Read Azure Advisor metadata
+- `Microsoft.Resources/subscriptions/read` - List subscriptions (only if querying all subscriptions)
+
+#### 2. Recommended RBAC Role Assignment
+
+Assign the built-in **Reader** role at the minimum necessary scope:
+
+```bash
+# Option 1: Subscription scope (recommended for most scenarios)
+az role assignment create \
+  --assignee user@example.com \
+  --role Reader \
+  --scope /subscriptions/{subscription-id}
+
+# Option 2: Resource Group scope (most restrictive)
+az role assignment create \
+  --assignee user@example.com \
+  --role Reader \
+  --scope /subscriptions/{subscription-id}/resourceGroups/{resource-group-name}
+```
+
+**Why Reader role?** The Reader role provides the minimum permissions needed to view Azure Advisor recommendations without granting any write, modify, or delete capabilities.
+
+#### 3. Using a Custom RBAC Role (Advanced)
+
+For maximum restriction, create a custom role with only the exact permissions needed:
+
+```bash
+# Create custom role definition
+az role definition create --role-definition '{
+  "Name": "Azure Advisor Reader",
+  "Description": "Can read Azure Advisor recommendations only",
+  "Actions": [
+    "Microsoft.Advisor/recommendations/read",
+    "Microsoft.Advisor/metadata/read",
+    "Microsoft.Resources/subscriptions/read"
+  ],
+  "NotActions": [],
+  "AssignableScopes": [
+    "/subscriptions/{subscription-id}"
+  ]
+}'
+
+# Assign the custom role
+az role assignment create \
+  --assignee user@example.com \
+  --role "Azure Advisor Reader" \
+  --scope /subscriptions/{subscription-id}
+```
+
+#### 4. Token Scope Limitations
+
+**Important**: While the OAuth token is scoped to `https://management.azure.com` (which covers all Azure Resource Manager APIs), the actual operations the module can perform are limited by:
+
+1. **RBAC Permissions**: Azure evaluates every API call against the user's assigned RBAC roles
+2. **Module Design**: The module only makes read-only calls to Azure Advisor endpoints
+3. **Token Validation**: The module validates that tokens have the correct audience claim
+
+Even though the token technically grants access to the entire Azure Resource Manager API, if you assign only the Reader role (or the custom role above), the authenticated user cannot:
+- Modify or delete resources
+- Create new resources  
+- Access APIs outside their assigned RBAC permissions
+- Dismiss or postpone Advisor recommendations (requires Contributor role)
+
+This defense-in-depth approach ensures security even if the token were somehow used outside the module.
+
+#### 5. Additional Security Recommendations
+
+- **Use service principals** for automation scenarios instead of user accounts
+- **Enable conditional access policies** to restrict where authentication can occur
+- **Regularly review role assignments** to ensure least privilege is maintained
+- **Use managed identities** when running on Azure compute resources
+- **Monitor audit logs** for unexpected API calls using Azure Monitor
+
+
 ### What the Module Cannot Do
 
 For security and transparency, the module is designed with strict limitations:
 
 - ❌ Cannot authenticate you to Azure (requires existing `az login` or `Connect-AzAccount`)
-- ❌ Cannot modify, create, or delete Azure resources
+- ❌ Cannot modify, create, or delete Azure resources (only uses read-only API operations)
 - ❌ Cannot access tokens or credentials from other modules
 - ❌ Cannot persist tokens beyond the PowerShell session
 - ❌ Cannot disconnect you from Azure CLI or Az.Accounts
-- ✅ Can only read Azure Advisor recommendations for retirement planning
+- ❌ Cannot accept tokens scoped to resources other than Azure Resource Manager
+- ✅ Can only read Azure Advisor recommendations and metadata for retirement planning
+- ✅ Validates token audience to ensure proper scoping to `https://management.azure.com`
+
+**Security Note**: While the OAuth token is scoped to the entire Azure Resource Manager API (`https://management.azure.com`), actual access is controlled by Azure RBAC. Assigning the Reader role (or a custom role with only Advisor read permissions) ensures the authenticated user cannot perform any write operations, even if they tried to use the token outside this module.
 
 ## What Commands Are Available?
 

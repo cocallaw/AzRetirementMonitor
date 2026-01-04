@@ -3,8 +3,8 @@ function Test-AzRetirementMonitorToken {
     .SYNOPSIS
     Tests if the stored access token is valid and not expired
     .DESCRIPTION
-    Decodes the JWT token and checks if it has expired
-    Returns $true if token is valid, $false if expired or invalid
+    Decodes the JWT token and checks if it has expired and has the correct audience
+    Returns $true if token is valid, $false if expired, invalid, or incorrectly scoped
     #>
     [CmdletBinding()]
     param()
@@ -40,6 +40,28 @@ function Test-AzRetirementMonitorToken {
         # Decode from Base64 and convert from JSON
         $payloadJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($base64))
         $tokenData = $payloadJson | ConvertFrom-Json
+
+        # Validate audience claim - must be scoped to Azure Resource Manager
+        # The audience (aud) claim identifies the intended recipient of the token
+        if ($tokenData.aud) {
+            $validAudiences = @(
+                'https://management.azure.com',
+                'https://management.azure.com/',
+                'https://management.core.windows.net',
+                'https://management.core.windows.net/'
+            )
+            
+            if ($tokenData.aud -notin $validAudiences) {
+                Write-Verbose "Token audience '$($tokenData.aud)' is not valid for Azure Resource Manager API calls"
+                return $false
+            }
+            
+            Write-Verbose "Token audience validated: $($tokenData.aud)"
+        }
+        else {
+            Write-Verbose "Token does not contain audience (aud) claim"
+            return $false
+        }
 
         # Check expiration time (exp claim is in Unix timestamp format)
         if ($tokenData.exp) {

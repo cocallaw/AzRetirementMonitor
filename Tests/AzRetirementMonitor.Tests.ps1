@@ -149,8 +149,11 @@ Describe "Token Expiration Validation" {
             # Header: {"alg":"HS256","typ":"JWT"}
             $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
             
-            # Create payload with specified expiration using ConvertTo-Json
-            $payloadObj = @{exp = $ExpirationUnixTime}
+            # Create payload with specified expiration and valid audience using ConvertTo-Json
+            $payloadObj = @{
+                exp = $ExpirationUnixTime
+                aud = "https://management.azure.com"
+            }
             $payloadJson = $payloadObj | ConvertTo-Json -Compress
             $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
             $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
@@ -254,6 +257,112 @@ Describe "Token Expiration Validation" {
         
         $module = Get-Module AzRetirementMonitor
         & $module { param($token) $script:AccessToken = $token } $tokenNoExp
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $false
+    }
+}
+
+Describe "Token Audience Validation" {
+    BeforeAll {
+        # Helper function to create a test JWT token with audience and expiration
+        function New-TestTokenWithAudience {
+            param(
+                [Parameter(Mandatory)]
+                [string]$Audience,
+                [long]$ExpirationUnixTime = ([DateTimeOffset]::UtcNow.AddDays(1).ToUnixTimeSeconds())
+            )
+            
+            # Header: {"alg":"HS256","typ":"JWT"}
+            $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+            
+            # Create payload with audience and expiration
+            $payloadObj = @{
+                aud = $Audience
+                exp = $ExpirationUnixTime
+            }
+            $payloadJson = $payloadObj | ConvertTo-Json -Compress
+            $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
+            $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+            
+            # Dummy signature
+            $signature = "dummysignature"
+            
+            return "$header.$payload.$signature"
+        }
+    }
+    
+    BeforeEach {
+        # Clear the token before each test
+        $module = Get-Module AzRetirementMonitor
+        & $module { $script:AccessToken = $null }
+    }
+    
+    It "Should accept token with https://management.azure.com audience" {
+        $token = New-TestTokenWithAudience -Audience "https://management.azure.com"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $token
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $true
+    }
+    
+    It "Should accept token with https://management.azure.com/ audience (with trailing slash)" {
+        $token = New-TestTokenWithAudience -Audience "https://management.azure.com/"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $token
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $true
+    }
+    
+    It "Should accept token with https://management.core.windows.net audience" {
+        $token = New-TestTokenWithAudience -Audience "https://management.core.windows.net"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $token
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $true
+    }
+    
+    It "Should reject token with incorrect audience (Graph API)" {
+        $token = New-TestTokenWithAudience -Audience "https://graph.microsoft.com"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $token
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $false
+    }
+    
+    It "Should reject token with incorrect audience (arbitrary resource)" {
+        $token = New-TestTokenWithAudience -Audience "https://example.com"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $token
+        
+        $testResult = & $module { Test-AzRetirementMonitorToken }
+        $testResult | Should -Be $false
+    }
+    
+    It "Should reject token without audience claim" {
+        $header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        
+        # Payload with exp but no aud
+        $futureTime = [DateTimeOffset]::UtcNow.AddDays(1).ToUnixTimeSeconds()
+        $payloadObj = @{exp = $futureTime; sub = "user123"}
+        $payloadJson = $payloadObj | ConvertTo-Json -Compress
+        $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes($payloadJson)
+        $payload = [Convert]::ToBase64String($payloadBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+        
+        $signature = "dummysignature"
+        $tokenNoAud = "$header.$payload.$signature"
+        
+        $module = Get-Module AzRetirementMonitor
+        & $module { param($token) $script:AccessToken = $token } $tokenNoAud
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
