@@ -7,9 +7,9 @@ Describe "Module Import" {
         Get-Module AzRetirementMonitor | Should -Not -BeNull
     }
     
-    It "Should export 4 functions" {
+    It "Should export 5 functions" {
         $commands = Get-Command -Module AzRetirementMonitor
-        $commands.Count | Should -Be 4
+        $commands.Count | Should -Be 5
     }
     
     It "Should export Connect-AzRetirementMonitor" {
@@ -27,6 +27,10 @@ Describe "Module Import" {
     It "Should export Export-AzRetirementReport" {
         Get-Command Export-AzRetirementReport -Module AzRetirementMonitor | Should -Not -BeNull
     }
+    
+    It "Should export Disconnect-AzRetirementMonitor" {
+        Get-Command Disconnect-AzRetirementMonitor -Module AzRetirementMonitor | Should -Not -BeNull
+    }
 }
 
 Describe "Connect-AzRetirementMonitor" {
@@ -38,6 +42,40 @@ Describe "Connect-AzRetirementMonitor" {
     It "Should have two parameter sets" {
         $cmd = Get-Command Connect-AzRetirementMonitor
         $cmd.ParameterSets.Count | Should -Be 2
+    }
+}
+
+Describe "Disconnect-AzRetirementMonitor" {
+    BeforeEach {
+        # Clear the token before each test
+        $module = Get-Module AzRetirementMonitor
+        & $module { $script:AccessToken = $null }
+    }
+    
+    It "Should clear the access token when connected" {
+        # Set up a token
+        $module = Get-Module AzRetirementMonitor
+        & $module { $script:AccessToken = "test-token-value" }
+        
+        # Verify token is set
+        $tokenBefore = & $module { $script:AccessToken }
+        $tokenBefore | Should -Be "test-token-value"
+        
+        # Disconnect
+        Disconnect-AzRetirementMonitor
+        
+        # Verify token is cleared
+        $tokenAfter = & $module { $script:AccessToken }
+        $tokenAfter | Should -BeNullOrEmpty
+    }
+    
+    It "Should handle disconnecting when not connected" {
+        # Ensure no token is set
+        $module = Get-Module AzRetirementMonitor
+        & $module { $script:AccessToken = $null }
+        
+        # Should not throw
+        { Disconnect-AzRetirementMonitor } | Should -Not -Throw
     }
 }
 
