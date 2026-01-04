@@ -111,7 +111,7 @@ AzRetirementMonitor uses a **read-only, scoped token** approach to ensure securi
 
 4. **Token Validation**: Before each API call, the module validates:
    - **Token format**: Must be a valid JWT with three parts (header.payload.signature)
-   - **Audience claim**: Must be `https://management.azure.com` or `https://management.core.windows.net`
+   - **Audience claim**: Must be `https://management.azure.com` or `https://management.core.windows.net` (legacy endpoint for backward compatibility)
    - **Expiration claim**: Must not be expired (checked with 5-minute buffer for clock skew)
    - Invalid or expired tokens trigger an error requiring re-authentication
 

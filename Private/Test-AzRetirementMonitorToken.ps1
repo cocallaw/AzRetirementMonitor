@@ -57,6 +57,9 @@ function Test-AzRetirementMonitorToken {
         # Validate audience claim - must be scoped to Azure Resource Manager
         # The audience (aud) claim identifies the intended recipient of the token
         if ($tokenData.aud) {
+            # Support both current and legacy Azure Resource Manager endpoints
+            # https://management.azure.com - Current standard endpoint
+            # https://management.core.windows.net - Legacy endpoint for backward compatibility with older Azure CLI versions
             $validAudiences = @(
                 'https://management.azure.com',
                 'https://management.azure.com/',

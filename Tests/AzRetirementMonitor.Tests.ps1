@@ -319,6 +319,7 @@ Describe "Token Audience Validation" {
     }
     
     It "Should accept token with https://management.core.windows.net audience" {
+        # Legacy Azure Resource Manager endpoint for backward compatibility with older Azure CLI versions
         $token = New-TestTokenWithAudience -Audience "https://management.core.windows.net"
         
         $module = Get-Module AzRetirementMonitor
