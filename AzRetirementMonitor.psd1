@@ -10,6 +10,7 @@
 
     FunctionsToExport    = @(
         'Connect-AzRetirementMonitor',
+        'Disconnect-AzRetirementMonitor',
         'Get-AzRetirementRecommendation',
         'Get-AzRetirementMetadataItem',
         'Export-AzRetirementReport'
