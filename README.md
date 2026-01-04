@@ -115,12 +115,6 @@ AzRetirementMonitor uses a **read-only, scoped token** approach to ensure securi
    - **Expiration claim**: Must not be expired (checked with 5-minute buffer for clock skew)
    - Invalid or expired tokens trigger an error requiring re-authentication
 
-4. **Token Validation**: Before each API call, the module validates:
-   - **Token format**: Must be a valid JWT with three parts (header.payload.signature)
-   - **Audience claim**: Must be `https://management.azure.com` or `https://management.core.windows.net`
-   - **Expiration claim**: Must not be expired (checked with 5-minute buffer for clock skew)
-   - Invalid or expired tokens trigger an error requiring re-authentication
-
 5. **Module Isolation**: The module's authentication is completely isolated:
    - `Connect-AzRetirementMonitor` **does not** authenticate you to Azure (you must already be logged in)
    - `Connect-AzRetirementMonitor` **only** requests an access token from your existing session
