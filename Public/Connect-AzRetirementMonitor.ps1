@@ -12,8 +12,24 @@ The token obtained is used exclusively for:
 - Listing subscriptions (Microsoft.Resources/subscriptions/read)
 
 Required RBAC permissions: Reader role at subscription or resource group scope
+
+The token is stored in a module-scoped variable for the duration of the PowerShell session
+and is validated for proper audience (https://management.azure.com) before use.
+.PARAMETER UseAzCLI
+Use Azure CLI (az) for authentication. This is the default.
+.PARAMETER UseAzPowerShell
+Use Az.Accounts PowerShell module for authentication.
+.EXAMPLE
+Connect-AzRetirementMonitor
+Connects using Azure CLI (default method)
+.EXAMPLE
+Connect-AzRetirementMonitor -UseAzPowerShell
+Connects using Az.Accounts PowerShell module
+.OUTPUTS
+None. Displays a success message when authentication completes.
 #>
     [CmdletBinding(DefaultParameterSetName = 'AzCLI')]
+    [OutputType([void])]
     param(
         [Parameter(ParameterSetName = 'AzCLI')]
         [switch]$UseAzCLI,

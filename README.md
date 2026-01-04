@@ -94,19 +94,34 @@ AzRetirementMonitor uses a **read-only, scoped token** approach to ensure securi
 2. **Token Storage**: The token is stored in a **module-scoped variable** (`$script:AccessToken`):
    - Only accessible within the AzRetirementMonitor module
    - Not accessible to other PowerShell modules or sessions
+   - Stored in plain text in memory (acceptable for short-lived session tokens)
    - Automatically cleared when the module is unloaded
    - Can be manually cleared with `Disconnect-AzRetirementMonitor`
+   - Not persisted to disk or any external storage
 
 3. **Token Scope**: The token is requested specifically for `https://management.azure.com`:
    - Only grants access to Azure Resource Manager APIs
    - Used exclusively for **read-only** operations (Azure Advisor recommendations)
    - Cannot be used to modify Azure resources
-   - The module validates the token's audience claim to ensure it's properly scoped
-   - Tokens scoped to other resources (e.g., Microsoft Graph) are rejected
+   - The module validates the token's audience (aud) claim before each API call
+   - Tokens scoped to other resources (e.g., Microsoft Graph) are automatically rejected
+   - Token expiration is checked before each use (with 5-minute safety buffer)
 
 **Note**: Azure does not provide resource-specific OAuth scopes for individual Azure Resource Manager APIs (like Azure Advisor). All ARM API calls use the same token scope (`https://management.azure.com`). However, actual permissions are controlled by Azure RBAC role assignments, allowing you to limit what the authenticated user can access. See the "Security Best Practices" section below for guidance on implementing least privilege access.
 
-4. **Module Isolation**: The module's authentication is completely isolated:
+4. **Token Validation**: Before each API call, the module validates:
+   - **Token format**: Must be a valid JWT with three parts (header.payload.signature)
+   - **Audience claim**: Must be `https://management.azure.com` or `https://management.core.windows.net`
+   - **Expiration claim**: Must not be expired (checked with 5-minute buffer for clock skew)
+   - Invalid or expired tokens trigger an error requiring re-authentication
+
+4. **Token Validation**: Before each API call, the module validates:
+   - **Token format**: Must be a valid JWT with three parts (header.payload.signature)
+   - **Audience claim**: Must be `https://management.azure.com` or `https://management.core.windows.net`
+   - **Expiration claim**: Must not be expired (checked with 5-minute buffer for clock skew)
+   - Invalid or expired tokens trigger an error requiring re-authentication
+
+5. **Module Isolation**: The module's authentication is completely isolated:
    - `Connect-AzRetirementMonitor` **does not** authenticate you to Azure (you must already be logged in)
    - `Connect-AzRetirementMonitor` **only** requests an access token from your existing session
    - `Disconnect-AzRetirementMonitor` **only** clears the module's stored token
@@ -214,6 +229,29 @@ This defense-in-depth approach ensures security even if the token were somehow u
 - **Regularly review role assignments** to ensure least privilege is maintained
 - **Use managed identities** when running on Azure compute resources
 - **Monitor audit logs** for unexpected API calls using Azure Monitor
+- **Rotate credentials regularly** if using service principals with client secrets
+
+#### 6. JWT Token Handling Best Practices
+
+This module follows JWT security best practices:
+
+**What the module validates:**
+- ✅ Token structure (must have header.payload.signature format)
+- ✅ Audience claim (`aud`) - ensures token is for Azure Resource Manager
+- ✅ Expiration claim (`exp`) - checks token hasn't expired (with 5-minute buffer)
+- ✅ Token format (Base64URL encoding validation)
+
+**What the module does NOT validate (and why):**
+- ❌ **Token signature**: Not validated because tokens come from trusted Azure sources (Azure CLI or Az.Accounts) and are validated by Azure when used for API calls
+- ❌ **Issuer claim**: Not validated because all tokens come from Azure AD/Entra ID
+- ❌ **Not-before claim**: Not necessary as we check expiration with buffer
+
+**Token security measures:**
+- Tokens are short-lived (typically 1 hour) - limited exposure window
+- Tokens are stored in module scope only - not accessible to other code
+- Tokens are not persisted to disk or any external storage
+- Tokens are cleared on disconnect or module unload
+- Token validation occurs before every API call
 
 
 ### What the Module Cannot Do
@@ -237,6 +275,12 @@ For security and transparency, the module is designed with strict limitations:
 
 Authenticates to Azure and obtains an access token for subsequent API calls.
 
+The token is validated to ensure it's scoped to `https://management.azure.com` and is used exclusively for read-only Azure Advisor operations.
+
+**Parameters:**
+- `-UseAzCLI` (default): Use Azure CLI authentication
+- `-UseAzPowerShell`: Use Az.Accounts PowerShell module authentication
+
 ```powershell
 # Using Azure CLI (default)
 Connect-AzRetirementMonitor
@@ -247,7 +291,9 @@ Connect-AzRetirementMonitor -UseAzPowerShell
 
 ### Disconnect-AzRetirementMonitor
 
-Clears the access token stored by the module. This does not affect your Azure CLI or Az.Accounts session.
+Clears the access token stored by the module. This does not affect your Azure CLI or Az.Accounts session - you remain logged in to Azure.
+
+The token is securely cleared from module memory and cannot be recovered after disconnection.
 
 ```powershell
 # Disconnect from AzRetirementMonitor

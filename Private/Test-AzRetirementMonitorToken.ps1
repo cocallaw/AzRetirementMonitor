@@ -3,10 +3,23 @@ function Test-AzRetirementMonitorToken {
     .SYNOPSIS
     Tests if the stored access token is valid and not expired
     .DESCRIPTION
-    Decodes the JWT token and checks if it has expired and has the correct audience
+    Decodes the JWT token and validates:
+    1. Token structure (3 parts: header.payload.signature)
+    2. Audience claim (must be https://management.azure.com or https://management.core.windows.net)
+    3. Expiration claim (must not be expired, with 5-minute buffer)
+    
+    This function performs basic JWT validation without signature verification.
+    Signature verification is not performed because:
+    - Tokens come from trusted Azure authentication sources (Azure CLI or Az.Accounts)
+    - Azure validates signatures when tokens are used for API calls
+    - We only use tokens immediately and don't persist them
+    
     Returns $true if token is valid, $false if expired, invalid, or incorrectly scoped
+    .OUTPUTS
+    System.Boolean
     #>
     [CmdletBinding()]
+    [OutputType([bool])]
     param()
 
     if (-not $script:AccessToken) {
