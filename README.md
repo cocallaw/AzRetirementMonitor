@@ -95,6 +95,15 @@ Connect-AzRetirementMonitor
 Connect-AzRetirementMonitor -UseAzPowerShell
 ```
 
+### Disconnect-AzRetirementMonitor
+
+Clears the access token stored by the module. This does not affect your Azure CLI or Az.Accounts session.
+
+```powershell
+# Disconnect from AzRetirementMonitor
+Disconnect-AzRetirementMonitor
+```
+
 ### Get-AzRetirementRecommendation
 
 Retrieves Azure Advisor recommendations related to service retirements and deprecations. This function specifically returns only HighAvailability category recommendations with ServiceUpgradeAndRetirement subcategory.
@@ -207,6 +216,9 @@ $recommendations | Export-AzRetirementReport -OutputPath "retirement-report.csv"
 
 # 5. Get metadata about retirement types (optional)
 Get-AzRetirementMetadataItem
+
+# 6. Disconnect when finished (optional)
+Disconnect-AzRetirementMonitor
 ```
 
 ## Contributing Guidelines
