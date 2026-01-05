@@ -1,6 +1,23 @@
 BeforeAll {
     # Test simulates the "Prepare Module for Publishing" step from publish.yml
     $script:stagingDir = "$TestDrive/staging/AzRetirementMonitor"
+    
+    # Helper function to simulate the staging process from publish.yml
+    function Invoke-ModuleStaging {
+        param([string]$StagingPath)
+        
+        New-Item -ItemType Directory -Path $StagingPath -Force | Out-Null
+        
+        $repoRoot = Split-Path $PSScriptRoot -Parent
+        
+        # Copy only the files needed for the module (matching publish.yml lines 71-76)
+        Copy-Item -Path "$repoRoot/AzRetirementMonitor.psd1" -Destination $StagingPath -Force
+        Copy-Item -Path "$repoRoot/AzRetirementMonitor.psm1" -Destination $StagingPath -Force
+        Copy-Item -Path "$repoRoot/LICENSE" -Destination $StagingPath -Force
+        Copy-Item -Path "$repoRoot/README.md" -Destination $StagingPath -Force
+        Copy-Item -Path "$repoRoot/Public" -Destination $StagingPath -Recurse -Force
+        Copy-Item -Path "$repoRoot/Private" -Destination $StagingPath -Recurse -Force
+    }
 }
 
 Describe "Publish Workflow - Module Staging" {
@@ -13,17 +30,7 @@ Describe "Publish Workflow - Module Staging" {
     
     It "Should exclude the images directory when staging module for publish" {
         # Simulate the staging process from .github/workflows/publish.yml
-        New-Item -ItemType Directory -Path $script:stagingDir -Force | Out-Null
-        
-        $repoRoot = Split-Path $PSScriptRoot -Parent
-        
-        # Copy only the files needed for the module (matching publish.yml lines 71-76)
-        Copy-Item -Path "$repoRoot/AzRetirementMonitor.psd1" -Destination $script:stagingDir -Force
-        Copy-Item -Path "$repoRoot/AzRetirementMonitor.psm1" -Destination $script:stagingDir -Force
-        Copy-Item -Path "$repoRoot/LICENSE" -Destination $script:stagingDir -Force
-        Copy-Item -Path "$repoRoot/README.md" -Destination $script:stagingDir -Force
-        Copy-Item -Path "$repoRoot/Public" -Destination $script:stagingDir -Recurse -Force
-        Copy-Item -Path "$repoRoot/Private" -Destination $script:stagingDir -Recurse -Force
+        Invoke-ModuleStaging -StagingPath $script:stagingDir
         
         # Verify images directory is NOT in staging
         $imagesInStaging = Test-Path "$script:stagingDir/images"
@@ -44,17 +51,7 @@ Describe "Publish Workflow - Module Staging" {
     
     It "Should stage only expected files and directories" {
         # Simulate the staging process from .github/workflows/publish.yml
-        New-Item -ItemType Directory -Path $script:stagingDir -Force | Out-Null
-        
-        $repoRoot = Split-Path $PSScriptRoot -Parent
-        
-        # Copy only the files needed for the module (matching publish.yml)
-        Copy-Item -Path "$repoRoot/AzRetirementMonitor.psd1" -Destination $script:stagingDir -Force
-        Copy-Item -Path "$repoRoot/AzRetirementMonitor.psm1" -Destination $script:stagingDir -Force
-        Copy-Item -Path "$repoRoot/LICENSE" -Destination $script:stagingDir -Force
-        Copy-Item -Path "$repoRoot/README.md" -Destination $script:stagingDir -Force
-        Copy-Item -Path "$repoRoot/Public" -Destination $script:stagingDir -Recurse -Force
-        Copy-Item -Path "$repoRoot/Private" -Destination $script:stagingDir -Recurse -Force
+        Invoke-ModuleStaging -StagingPath $script:stagingDir
         
         # Get all items in staging directory
         $stagedItems = Get-ChildItem -Path $script:stagingDir -Name
