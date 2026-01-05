@@ -3,10 +3,23 @@ function Test-AzRetirementMonitorToken {
     .SYNOPSIS
     Tests if the stored access token is valid and not expired
     .DESCRIPTION
-    Decodes the JWT token and checks if it has expired
-    Returns $true if token is valid, $false if expired or invalid
+    Decodes the JWT token and validates:
+    1. Token structure (3 parts: header.payload.signature)
+    2. Audience claim (must be https://management.azure.com or https://management.core.windows.net)
+    3. Expiration claim (must not be expired, with 5-minute buffer)
+    
+    This function performs basic JWT validation without signature verification.
+    Signature verification is not performed because:
+    - Tokens come from trusted Azure authentication sources (Azure CLI or Az.Accounts)
+    - Azure validates signatures when tokens are used for API calls
+    - We only use tokens immediately and don't persist them
+    
+    Returns $true if token is valid, $false if expired, invalid, or incorrectly scoped
+    .OUTPUTS
+    System.Boolean
     #>
     [CmdletBinding()]
+    [OutputType([bool])]
     param()
 
     if (-not $script:AccessToken) {
@@ -40,6 +53,31 @@ function Test-AzRetirementMonitorToken {
         # Decode from Base64 and convert from JSON
         $payloadJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($base64))
         $tokenData = $payloadJson | ConvertFrom-Json
+
+        # Validate audience claim - must be scoped to Azure Resource Manager
+        # The audience (aud) claim identifies the intended recipient of the token
+        if ($tokenData.aud) {
+            # Support both current and legacy Azure Resource Manager endpoints
+            # https://management.azure.com - Current standard endpoint
+            # https://management.core.windows.net - Legacy endpoint for backward compatibility with older Azure CLI versions
+            $validAudiences = @(
+                'https://management.azure.com',
+                'https://management.azure.com/',
+                'https://management.core.windows.net',
+                'https://management.core.windows.net/'
+            )
+            
+            if ($tokenData.aud -notin $validAudiences) {
+                Write-Verbose "Token audience '$($tokenData.aud)' is not valid for Azure Resource Manager API calls"
+                return $false
+            }
+            
+            Write-Verbose "Token audience validated: $($tokenData.aud)"
+        }
+        else {
+            Write-Verbose "Token does not contain audience (aud) claim"
+            return $false
+        }
 
         # Check expiration time (exp claim is in Unix timestamp format)
         if ($tokenData.exp) {

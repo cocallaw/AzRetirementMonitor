@@ -81,69 +81,18 @@ AzRetirementMonitor supports two authentication methods:
    Connect-AzRetirementMonitor -UseAzPowerShell
    ```
 
-## How Does Authentication and Token Management Work?
-
-### Security Model
-
-AzRetirementMonitor uses a **read-only, scoped token** approach to ensure security and isolation:
-
-1. **Token Acquisition**: The module obtains a time-limited access token from your existing Azure authentication:
-   - **Azure CLI**: Uses `az account get-access-token` to request a token from your logged-in session
-   - **Az.Accounts**: Uses `Get-AzAccessToken` to request a token from your connected context
-   
-2. **Token Storage**: The token is stored in a **module-scoped variable** (`$script:AccessToken`):
-   - Only accessible within the AzRetirementMonitor module
-   - Not accessible to other PowerShell modules or sessions
-   - Automatically cleared when the module is unloaded
-   - Can be manually cleared with `Disconnect-AzRetirementMonitor`
-
-3. **Token Scope**: The token is requested specifically for `https://management.azure.com`:
-   - Only grants access to Azure Resource Manager APIs
-   - Used exclusively for **read-only** operations (Azure Advisor recommendations)
-   - Cannot be used to modify Azure resources
-
-4. **Module Isolation**: The module's authentication is completely isolated:
-   - `Connect-AzRetirementMonitor` **does not** authenticate you to Azure (you must already be logged in)
-   - `Connect-AzRetirementMonitor` **only** requests an access token from your existing session
-   - `Disconnect-AzRetirementMonitor` **only** clears the module's stored token
-   - `Disconnect-AzRetirementMonitor` **does not** affect your Azure CLI or Az.Accounts session
-   - You remain logged in to Azure CLI (`az login`) or Az.Accounts (`Connect-AzAccount`) after disconnecting
-
-### Token Lifecycle
-
-```powershell
-# You authenticate to Azure first (outside the module)
-az login  # or Connect-AzAccount
-
-# Module requests a token from your session (does not re-authenticate)
-Connect-AzRetirementMonitor
-
-# Module uses the token for API calls
-Get-AzRetirementRecommendation
-
-# Module clears its token (you remain logged in to Azure)
-Disconnect-AzRetirementMonitor
-
-# You can still use Azure CLI/PowerShell
-az account show  # Still works - you're still logged in
-```
-
-### What the Module Cannot Do
-
-For security and transparency, the module is designed with strict limitations:
-
-- ❌ Cannot authenticate you to Azure (requires existing `az login` or `Connect-AzAccount`)
-- ❌ Cannot modify, create, or delete Azure resources
-- ❌ Cannot access tokens or credentials from other modules
-- ❌ Cannot persist tokens beyond the PowerShell session
-- ❌ Cannot disconnect you from Azure CLI or Az.Accounts
-- ✅ Can only read Azure Advisor recommendations for retirement planning
-
 ## What Commands Are Available?
 
 ### Connect-AzRetirementMonitor
 
 Authenticates to Azure and obtains an access token for subsequent API calls.
+
+The token is validated to ensure it's scoped to `https://management.azure.com` and is used exclusively for read-only Azure Advisor operations.
+
+**Parameters:**
+
+- `-UseAzCLI` (default): Use Azure CLI authentication
+- `-UseAzPowerShell`: Use Az.Accounts PowerShell module authentication
 
 ```powershell
 # Using Azure CLI (default)
@@ -155,7 +104,9 @@ Connect-AzRetirementMonitor -UseAzPowerShell
 
 ### Disconnect-AzRetirementMonitor
 
-Clears the access token stored by the module. This does not affect your Azure CLI or Az.Accounts session.
+Clears the access token stored by the module. This does not affect your Azure CLI or Az.Accounts session - you remain logged in to Azure.
+
+The token is securely cleared from module memory and cannot be recovered after disconnection.
 
 ```powershell
 # Disconnect from AzRetirementMonitor
@@ -255,6 +206,10 @@ PS> Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "./re
 
 This creates an HTML report with all retirement recommendations, including resource details, impact levels, and actionable solutions.
 
+**Example HTML Report:**
+
+![Example HTML Report](images/example-html-report.png)
+
 ## Usage Workflow
 
 Here's a typical workflow for monitoring Azure retirements:
@@ -278,6 +233,65 @@ Get-AzRetirementMetadataItem
 # 6. Disconnect when finished (optional)
 Disconnect-AzRetirementMonitor
 ```
+
+## How Does Authentication and Token Management Work?
+
+### Security Model
+
+AzRetirementMonitor uses a **read-only, scoped token** approach to ensure security and isolation:
+
+1. **Token Acquisition**: The module obtains a time-limited access token from your existing Azure authentication:
+   - **Azure CLI**: Uses `az account get-access-token` to request a token from your logged-in session
+   - **Az.Accounts**: Uses `Get-AzAccessToken` to request a token from your connected context
+   - The module does **not** prompt for credentials or re-authenticate you
+
+2. **Token Storage**: The token is stored in a **module-scoped variable** (`$script:AccessToken`):
+   - Only accessible within the AzRetirementMonitor module
+   - Not accessible to other PowerShell modules or sessions
+   - Automatically cleared when the module is unloaded
+   - Can be manually cleared with `Disconnect-AzRetirementMonitor`
+
+3. **Token Scope**: The token is requested specifically for `https://management.azure.com`:
+   - Only grants access to Azure Resource Manager APIs
+   - Used exclusively for **read-only** operations (Azure Advisor recommendations)
+   - Cannot be used to modify Azure resources
+
+4. **Module Isolation**: The module's authentication is completely isolated:
+   - `Connect-AzRetirementMonitor` **does not** authenticate you to Azure (you must already be logged in)
+   - `Connect-AzRetirementMonitor` **only** requests an access token from your existing session
+   - `Disconnect-AzRetirementMonitor` **only** clears the module's stored token
+   - `Disconnect-AzRetirementMonitor` **does not** affect your Azure CLI or Az.Accounts session
+   - You remain logged in to Azure CLI (`az login`) or Az.Accounts (`Connect-AzAccount`) after disconnecting
+
+### Token Lifecycle
+
+```powershell
+# You authenticate to Azure first (outside the module)
+az login  # or Connect-AzAccount
+
+# Module requests a token from your session (does not re-authenticate)
+Connect-AzRetirementMonitor
+
+# Module uses the token for API calls
+Get-AzRetirementRecommendation
+
+# Module clears its token (you remain logged in to Azure)
+Disconnect-AzRetirementMonitor
+
+# You can still use Azure CLI/PowerShell
+az account show  # Still works - you're still logged in
+```
+
+### What the Module Cannot Do
+
+For security and transparency, the module is designed with strict limitations:
+
+- ❌ Cannot authenticate you to Azure (requires existing `az login` or `Connect-AzAccount`)
+- ❌ Cannot modify, create, or delete Azure resources
+- ❌ Cannot access tokens or credentials from other modules
+- ❌ Cannot persist tokens beyond the PowerShell session
+- ❌ Cannot disconnect you from Azure CLI or Az.Accounts
+- ✅ Can only read Azure Advisor recommendations for retirement planning
 
 ## Contributing Guidelines
 
