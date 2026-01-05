@@ -53,7 +53,7 @@ jobs:
       - name: Run Pester Tests
         shell: pwsh
         run: |
-          $testPath = "Tests/AzRetirementMonitor.Tests.ps1"
+          $testPath = "Tests"
           if (Test-Path $testPath) {
             $config = New-PesterConfiguration
             $config.Run.Path = $testPath
@@ -61,6 +61,6 @@ jobs:
             $config.Output.Verbosity = 'Detailed'
             Invoke-Pester -Configuration $config
           } else {
-            Write-Error "Test file not found at: $testPath"
+            Write-Error "Test directory not found at: $testPath"
             exit 1
           }
