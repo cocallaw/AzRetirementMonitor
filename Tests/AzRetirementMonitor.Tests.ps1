@@ -99,7 +99,6 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             # The stored token should be the plain text version
             $storedToken | Should -Be $script:TestToken
             $storedToken | Should -BeOfType [string]
-            $storedToken | Should -Not -BeOfType [System.Security.SecureString]
         }
     }
     
