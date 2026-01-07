@@ -47,11 +47,29 @@ Describe "Connect-AzRetirementMonitor" {
 
 Describe "Connect-AzRetirementMonitor SecureString Handling" {
     BeforeAll {
-        # Check if Az.Accounts is available, if not, skip the entire describe block
-        $script:AzAccountsAvailable = $null -ne (Get-Module -ListAvailable -Name Az.Accounts)
-        
         # Shared test token with far-future expiration and correct audience
         $script:TestToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTksImF1ZCI6Imh0dHBzOi8vbWFuYWdlbWVudC5henVyZS5jb20ifQ.dummysignature"
+        
+        # Create stub functions for Az.Accounts cmdlets if they don't exist
+        # This allows mocking to work even when Az.Accounts is not installed
+        if (-not (Get-Command Get-AzContext -ErrorAction SilentlyContinue)) {
+            function global:Get-AzContext { }
+        }
+        if (-not (Get-Command Get-AzAccessToken -ErrorAction SilentlyContinue)) {
+            function global:Get-AzAccessToken { }
+        }
+    }
+    
+    AfterAll {
+        # Clean up stub functions if we created them
+        if ((Get-Command Get-AzContext -ErrorAction SilentlyContinue) -and 
+            -not (Get-Module Az.Accounts)) {
+            Remove-Item Function:\Get-AzContext -ErrorAction SilentlyContinue
+        }
+        if ((Get-Command Get-AzAccessToken -ErrorAction SilentlyContinue) -and 
+            -not (Get-Module Az.Accounts)) {
+            Remove-Item Function:\Get-AzAccessToken -ErrorAction SilentlyContinue
+        }
     }
     
     BeforeEach {
@@ -77,7 +95,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
     }
     
     Context "Az.Accounts 5.0+ with SecureString Token" {
-        It "Should convert SecureString token to plain text" -Skip:(-not $script:AzAccountsAvailable) {
+        It "Should convert SecureString token to plain text" {
             # Create a SecureString token to simulate Az.Accounts 5.0+ behavior
             $secureToken = ConvertTo-SecureString -String $script:TestToken -AsPlainText -Force
             
@@ -103,23 +121,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
     }
     
     Context "Older Az.Accounts with Plain Text Token" {
-        It "Should use plain text token directly" -Skip:(-not $script:AzAccountsAvailable) {
-            # Mock Get-Module to simulate Az.Accounts being available
-            Mock -ModuleName AzRetirementMonitor Get-Module -ParameterFilter { $Name -eq 'Az.Accounts' -and $ListAvailable } {
-                return @{ Name = 'Az.Accounts'; Version = '4.9.0' }
-            }
-            
-            # Mock Import-Module to prevent actual import
-            Mock -ModuleName AzRetirementMonitor Import-Module { }
-            
-            # Mock Get-AzContext to return a context
-            Mock -ModuleName AzRetirementMonitor Get-AzContext {
-                return @{
-                    Account = @{ Id = "test@example.com" }
-                    Subscription = @{ Id = "test-subscription-id" }
-                }
-            }
-            
+        It "Should use plain text token directly" {
             # Mock Get-AzAccessToken to return a token object with plain text Token property
             Mock -ModuleName AzRetirementMonitor Get-AzAccessToken {
                 return [PSCustomObject]@{
