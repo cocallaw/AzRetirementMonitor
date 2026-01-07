@@ -52,7 +52,19 @@ None. Displays a success message when authentication completes.
             Write-Verbose "Using Az.Accounts for authentication"
             Write-Verbose "Requesting token scoped to https://management.azure.com for read-only Azure Advisor access"
             $token = Get-AzAccessToken -ResourceUrl "https://management.azure.com"
-            $script:AccessToken = $token.Token
+            
+            # Starting with Az.Accounts 5.0.0, the Token property is a SecureString
+            # We need to convert it to plain text for use in Authorization headers
+            # This conversion is necessary because REST API calls require the token as a string
+            if ($token.Token -is [System.Security.SecureString]) {
+                # Use PSCredential to convert SecureString to plain text
+                $credential = New-Object System.Management.Automation.PSCredential("token", $token.Token)
+                $script:AccessToken = $credential.GetNetworkCredential().Password
+            }
+            else {
+                # Backwards compatibility for older Az.Accounts versions that return plain text
+                $script:AccessToken = $token.Token
+            }
         }
         else {
             $null = & az account show 2>$null
