@@ -49,6 +49,9 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
     BeforeAll {
         # Check if Az.Accounts is available, if not, skip the entire describe block
         $script:AzAccountsAvailable = $null -ne (Get-Module -ListAvailable -Name Az.Accounts)
+        
+        # Shared test token with far-future expiration and correct audience
+        $script:TestToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTksImF1ZCI6Imh0dHBzOi8vbWFuYWdlbWVudC5henVyZS5jb20ifQ.dummysignature"
     }
     
     BeforeEach {
@@ -76,8 +79,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             }
             
             # Create a SecureString token to simulate Az.Accounts 5.0+ behavior
-            $plainTextToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTksImF1ZCI6Imh0dHBzOi8vbWFuYWdlbWVudC5henVyZS5jb20ifQ.dummysignature"
-            $secureToken = ConvertTo-SecureString -String $plainTextToken -AsPlainText -Force
+            $secureToken = ConvertTo-SecureString -String $script:TestToken -AsPlainText -Force
             
             # Mock Get-AzAccessToken to return a token object with SecureString Token property
             Mock -ModuleName AzRetirementMonitor Get-AzAccessToken {
@@ -95,7 +97,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             $storedToken = & $module { $script:AccessToken }
             
             # The stored token should be the plain text version
-            $storedToken | Should -Be $plainTextToken
+            $storedToken | Should -Be $script:TestToken
             $storedToken | Should -BeOfType [string]
             $storedToken | Should -Not -BeOfType [System.Security.SecureString]
         }
@@ -119,13 +121,10 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
                 }
             }
             
-            # Create a plain text token to simulate older Az.Accounts behavior
-            $plainTextToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTksImF1ZCI6Imh0dHBzOi8vbWFuYWdlbWVudC5henVyZS5jb20ifQ.dummysignature"
-            
             # Mock Get-AzAccessToken to return a token object with plain text Token property
             Mock -ModuleName AzRetirementMonitor Get-AzAccessToken {
                 return [PSCustomObject]@{
-                    Token = $plainTextToken
+                    Token = $script:TestToken
                     ExpiresOn = [DateTimeOffset]::UtcNow.AddHours(1)
                 }
             }
@@ -138,7 +137,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             $storedToken = & $module { $script:AccessToken }
             
             # The stored token should be the plain text version
-            $storedToken | Should -Be $plainTextToken
+            $storedToken | Should -Be $script:TestToken
             $storedToken | Should -BeOfType [string]
         }
     }
