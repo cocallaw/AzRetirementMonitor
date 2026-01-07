@@ -50,25 +50,25 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
         # Shared test token with far-future expiration and correct audience
         $script:TestToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTksImF1ZCI6Imh0dHBzOi8vbWFuYWdlbWVudC5henVyZS5jb20ifQ.dummysignature"
         
+        # Track which stub functions we created so we can clean them up properly
+        $script:CreatedStubs = @()
+        
         # Create stub functions for Az.Accounts cmdlets if they don't exist
         # This allows mocking to work even when Az.Accounts is not installed
         if (-not (Get-Command Get-AzContext -ErrorAction SilentlyContinue)) {
             function global:Get-AzContext { }
+            $script:CreatedStubs += 'Get-AzContext'
         }
         if (-not (Get-Command Get-AzAccessToken -ErrorAction SilentlyContinue)) {
             function global:Get-AzAccessToken { }
+            $script:CreatedStubs += 'Get-AzAccessToken'
         }
     }
     
     AfterAll {
-        # Clean up stub functions if we created them
-        if ((Get-Command Get-AzContext -ErrorAction SilentlyContinue) -and 
-            -not (Get-Module Az.Accounts)) {
-            Remove-Item Function:\Get-AzContext -ErrorAction SilentlyContinue
-        }
-        if ((Get-Command Get-AzAccessToken -ErrorAction SilentlyContinue) -and 
-            -not (Get-Module Az.Accounts)) {
-            Remove-Item Function:\Get-AzAccessToken -ErrorAction SilentlyContinue
+        # Clean up only the stub functions we created
+        foreach ($stubName in $script:CreatedStubs) {
+            Remove-Item "Function:\$stubName" -ErrorAction SilentlyContinue
         }
     }
     
