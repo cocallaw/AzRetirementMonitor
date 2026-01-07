@@ -45,6 +45,105 @@ Describe "Connect-AzRetirementMonitor" {
     }
 }
 
+Describe "Connect-AzRetirementMonitor SecureString Handling" {
+    BeforeAll {
+        # Check if Az.Accounts is available, if not, skip the entire describe block
+        $script:AzAccountsAvailable = $null -ne (Get-Module -ListAvailable -Name Az.Accounts)
+    }
+    
+    BeforeEach {
+        # Clear the token before each test
+        $module = Get-Module AzRetirementMonitor
+        & $module { $script:AccessToken = $null }
+    }
+    
+    Context "Az.Accounts 5.0+ with SecureString Token" {
+        It "Should convert SecureString token to plain text" -Skip:(-not $script:AzAccountsAvailable) {
+            # Mock Get-Module to simulate Az.Accounts being available
+            Mock -ModuleName AzRetirementMonitor Get-Module -ParameterFilter { $Name -eq 'Az.Accounts' -and $ListAvailable } {
+                return @{ Name = 'Az.Accounts'; Version = '5.0.0' }
+            }
+            
+            # Mock Import-Module to prevent actual import
+            Mock -ModuleName AzRetirementMonitor Import-Module { }
+            
+            # Mock Get-AzContext to return a context
+            Mock -ModuleName AzRetirementMonitor Get-AzContext {
+                return @{
+                    Account = @{ Id = "test@example.com" }
+                    Subscription = @{ Id = "test-subscription-id" }
+                }
+            }
+            
+            # Create a SecureString token to simulate Az.Accounts 5.0+ behavior
+            $plainTextToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTksImF1ZCI6Imh0dHBzOi8vbWFuYWdlbWVudC5henVyZS5jb20ifQ.dummysignature"
+            $secureToken = ConvertTo-SecureString -String $plainTextToken -AsPlainText -Force
+            
+            # Mock Get-AzAccessToken to return a token object with SecureString Token property
+            Mock -ModuleName AzRetirementMonitor Get-AzAccessToken {
+                return [PSCustomObject]@{
+                    Token = $secureToken
+                    ExpiresOn = [DateTimeOffset]::UtcNow.AddHours(1)
+                }
+            }
+            
+            # Call Connect-AzRetirementMonitor with UseAzPowerShell
+            Connect-AzRetirementMonitor -UseAzPowerShell
+            
+            # Verify the token was set correctly in module scope
+            $module = Get-Module AzRetirementMonitor
+            $storedToken = & $module { $script:AccessToken }
+            
+            # The stored token should be the plain text version
+            $storedToken | Should -Be $plainTextToken
+            $storedToken | Should -BeOfType [string]
+            $storedToken | Should -Not -BeOfType [System.Security.SecureString]
+        }
+    }
+    
+    Context "Older Az.Accounts with Plain Text Token" {
+        It "Should use plain text token directly" -Skip:(-not $script:AzAccountsAvailable) {
+            # Mock Get-Module to simulate Az.Accounts being available
+            Mock -ModuleName AzRetirementMonitor Get-Module -ParameterFilter { $Name -eq 'Az.Accounts' -and $ListAvailable } {
+                return @{ Name = 'Az.Accounts'; Version = '4.9.0' }
+            }
+            
+            # Mock Import-Module to prevent actual import
+            Mock -ModuleName AzRetirementMonitor Import-Module { }
+            
+            # Mock Get-AzContext to return a context
+            Mock -ModuleName AzRetirementMonitor Get-AzContext {
+                return @{
+                    Account = @{ Id = "test@example.com" }
+                    Subscription = @{ Id = "test-subscription-id" }
+                }
+            }
+            
+            # Create a plain text token to simulate older Az.Accounts behavior
+            $plainTextToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTksImF1ZCI6Imh0dHBzOi8vbWFuYWdlbWVudC5henVyZS5jb20ifQ.dummysignature"
+            
+            # Mock Get-AzAccessToken to return a token object with plain text Token property
+            Mock -ModuleName AzRetirementMonitor Get-AzAccessToken {
+                return [PSCustomObject]@{
+                    Token = $plainTextToken
+                    ExpiresOn = [DateTimeOffset]::UtcNow.AddHours(1)
+                }
+            }
+            
+            # Call Connect-AzRetirementMonitor with UseAzPowerShell
+            Connect-AzRetirementMonitor -UseAzPowerShell
+            
+            # Verify the token was set correctly in module scope
+            $module = Get-Module AzRetirementMonitor
+            $storedToken = & $module { $script:AccessToken }
+            
+            # The stored token should be the plain text version
+            $storedToken | Should -Be $plainTextToken
+            $storedToken | Should -BeOfType [string]
+        }
+    }
+}
+
 Describe "Disconnect-AzRetirementMonitor" {
     BeforeEach {
         # Clear the token before each test
