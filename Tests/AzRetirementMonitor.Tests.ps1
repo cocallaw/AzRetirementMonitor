@@ -58,26 +58,26 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
         # Clear the token before each test
         $module = Get-Module AzRetirementMonitor
         & $module { $script:AccessToken = $null }
+
+        # Common mocks for Az.Accounts and Azure context used across tests
+        Mock -ModuleName AzRetirementMonitor Get-Module -ParameterFilter { $Name -eq 'Az.Accounts' -and $ListAvailable } {
+            return @{ Name = 'Az.Accounts'; Version = '5.0.0' }
+        }
+
+        # Mock Import-Module to prevent actual import
+        Mock -ModuleName AzRetirementMonitor Import-Module { }
+
+        # Mock Get-AzContext to return a context
+        Mock -ModuleName AzRetirementMonitor Get-AzContext {
+            return @{
+                Account = @{ Id = "test@example.com" }
+                Subscription = @{ Id = "test-subscription-id" }
+            }
+        }
     }
     
     Context "Az.Accounts 5.0+ with SecureString Token" {
         It "Should convert SecureString token to plain text" -Skip:(-not $script:AzAccountsAvailable) {
-            # Mock Get-Module to simulate Az.Accounts being available
-            Mock -ModuleName AzRetirementMonitor Get-Module -ParameterFilter { $Name -eq 'Az.Accounts' -and $ListAvailable } {
-                return @{ Name = 'Az.Accounts'; Version = '5.0.0' }
-            }
-            
-            # Mock Import-Module to prevent actual import
-            Mock -ModuleName AzRetirementMonitor Import-Module { }
-            
-            # Mock Get-AzContext to return a context
-            Mock -ModuleName AzRetirementMonitor Get-AzContext {
-                return @{
-                    Account = @{ Id = "test@example.com" }
-                    Subscription = @{ Id = "test-subscription-id" }
-                }
-            }
-            
             # Create a SecureString token to simulate Az.Accounts 5.0+ behavior
             $secureToken = ConvertTo-SecureString -String $script:TestToken -AsPlainText -Force
             
