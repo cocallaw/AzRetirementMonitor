@@ -154,36 +154,30 @@ Gets recommendations using the REST API method
             try {
                 # Get recommendations and filter by Category first (more efficient)
                 $filter = "Category eq 'HighAvailability'"
+
+                # Common filter for ServiceUpgradeAndRetirement subcategory
+                $subcategoryFilter = {
+                    # Parse extended properties to check subcategory
+                    if ($_.ExtendedProperty) {
+                        $extProps = $_.ExtendedProperty | ConvertFrom-Json
+                        $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement'
+                    }
+                    else {
+                        $false
+                    }
+                }
                 
                 $recommendations = if ($SubscriptionId) {
                     # Query specific subscriptions
                     foreach ($subId in $SubscriptionId) {
                         Write-Verbose "Querying subscription via Az.Advisor: $subId"
-                        Get-AzAdvisorRecommendation -Filter $filter | Where-Object {
-                            # Parse extended properties to check subcategory
-                            if ($_.ExtendedProperty) {
-                                $extProps = $_.ExtendedProperty | ConvertFrom-Json
-                                $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement'
-                            }
-                            else {
-                                $false
-                            }
-                        }
+                        Get-AzAdvisorRecommendation -Filter $filter | Where-Object $subcategoryFilter
                     }
                 }
                 else {
                     # Query all subscriptions
                     Write-Verbose "Querying all subscriptions via Az.Advisor"
-                    Get-AzAdvisorRecommendation -Filter $filter | Where-Object {
-                        # Parse extended properties to check subcategory
-                        if ($_.ExtendedProperty) {
-                            $extProps = $_.ExtendedProperty | ConvertFrom-Json
-                            $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement'
-                        }
-                        else {
-                            $false
-                        }
-                    }
+                    Get-AzAdvisorRecommendation -Filter $filter | Where-Object $subcategoryFilter
                 }
 
                 foreach ($rec in $recommendations) {
