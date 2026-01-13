@@ -28,37 +28,27 @@ Exports retirement recommendations to CSV, JSON, or HTML
             return
         }
 
+        # Transform data to use Description in Solution column for Az.Advisor mode
+        # (when Problem and Solution are the same, Description usually has better info)
+        # This transformation is used for CSV, JSON, and HTML formats
+        $transformedRecs = $allRecs | ForEach-Object {
+            $rec = $_ | Select-Object -Property * -ExcludeProperty Solution
+            # Use Description if Problem == Solution and Description exists
+            # This indicates Az.Advisor mode where generic text is duplicated
+            $solutionValue = if ($_.Problem -eq $_.Solution -and $_.Description) {
+                $_.Description
+            } else {
+                $_.Solution
+            }
+            $rec | Add-Member -MemberType NoteProperty -Name "Solution" -Value $solutionValue -Force
+            $rec
+        }
+
         switch ($Format) {
             "CSV" {
-                # Transform data to use Description in Solution column for Az.Advisor mode
-                # (when Problem and Solution are the same, Description usually has better info)
-                $transformedRecs = $allRecs | ForEach-Object {
-                    $rec = $_ | Select-Object -Property * -ExcludeProperty Solution
-                    # Use Description if Problem == Solution and Description exists
-                    # This indicates Az.Advisor mode where generic text is duplicated
-                    $solutionValue = if ($_.Problem -eq $_.Solution -and $_.Description) {
-                        $_.Description
-                    } else {
-                        $_.Solution
-                    }
-                    $rec | Add-Member -MemberType NoteProperty -Name "Solution" -Value $solutionValue -Force
-                    $rec
-                }
                 $transformedRecs | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8
             }
             "JSON" {
-                # Transform data to use Description in Solution column for Az.Advisor mode
-                $transformedRecs = $allRecs | ForEach-Object {
-                    $rec = $_ | Select-Object -Property * -ExcludeProperty Solution
-                    # Use Description if Problem == Solution and Description exists
-                    $solutionValue = if ($_.Problem -eq $_.Solution -and $_.Description) {
-                        $_.Description
-                    } else {
-                        $_.Solution
-                    }
-                    $rec | Add-Member -MemberType NoteProperty -Name "Solution" -Value $solutionValue -Force
-                    $rec
-                }
                 $transformedRecs | ConvertTo-Json -Depth 10 | Out-File $OutputPath -Encoding utf8
             }
             "HTML" {
@@ -215,23 +205,14 @@ Exports retirement recommendations to CSV, JSON, or HTML
 "@
 
                 # Add table rows - collect in array for better performance
-                $tableRows = foreach ($rec in $allRecs) {
+                $tableRows = foreach ($rec in $transformedRecs) {
                     # HTML encode all user-provided data to prevent XSS
                     $encodedResourceName = ConvertTo-HtmlEncoded $rec.ResourceName
                     $encodedResourceType = ConvertTo-HtmlEncoded $rec.ResourceType
                     $encodedResourceGroup = ConvertTo-HtmlEncoded $rec.ResourceGroup
                     $encodedImpact = ConvertTo-HtmlEncoded $rec.Impact
                     $encodedProblem = ConvertTo-HtmlEncoded $rec.Problem
-                    
-                    # Use Description if Problem == Solution (Az.Advisor mode) and Description exists
-                    # This indicates generic duplicated text; use the more informative Description
-                    # For API mode where Problem != Solution, keep original Solution
-                    $solutionText = if ($rec.Problem -eq $rec.Solution -and $rec.Description) {
-                        $rec.Description
-                    } else {
-                        $rec.Solution
-                    }
-                    $encodedSolution = ConvertTo-HtmlEncoded $solutionText
+                    $encodedSolution = ConvertTo-HtmlEncoded $rec.Solution
                     $encodedSubscriptionId = ConvertTo-HtmlEncoded $rec.SubscriptionId
                     
                     # Validate and sanitize CSS class name to prevent CSS injection
