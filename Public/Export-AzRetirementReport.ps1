@@ -30,10 +30,36 @@ Exports retirement recommendations to CSV, JSON, or HTML
 
         switch ($Format) {
             "CSV" {
-                $allRecs | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8
+                # Transform data to use Description in Solution column for Az.Advisor mode
+                # (when Problem and Solution are the same, Description usually has better info)
+                $transformedRecs = $allRecs | ForEach-Object {
+                    $rec = $_ | Select-Object -Property * -ExcludeProperty Solution
+                    # Use Description if Problem == Solution and Description exists
+                    # This indicates Az.Advisor mode where generic text is duplicated
+                    $solutionValue = if ($_.Problem -eq $_.Solution -and $_.Description) {
+                        $_.Description
+                    } else {
+                        $_.Solution
+                    }
+                    $rec | Add-Member -MemberType NoteProperty -Name "Solution" -Value $solutionValue -Force
+                    $rec
+                }
+                $transformedRecs | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8
             }
             "JSON" {
-                $allRecs | ConvertTo-Json -Depth 10 | Out-File $OutputPath -Encoding utf8
+                # Transform data to use Description in Solution column for Az.Advisor mode
+                $transformedRecs = $allRecs | ForEach-Object {
+                    $rec = $_ | Select-Object -Property * -ExcludeProperty Solution
+                    # Use Description if Problem == Solution and Description exists
+                    $solutionValue = if ($_.Problem -eq $_.Solution -and $_.Description) {
+                        $_.Description
+                    } else {
+                        $_.Solution
+                    }
+                    $rec | Add-Member -MemberType NoteProperty -Name "Solution" -Value $solutionValue -Force
+                    $rec
+                }
+                $transformedRecs | ConvertTo-Json -Depth 10 | Out-File $OutputPath -Encoding utf8
             }
             "HTML" {
                 # Helper function to escape HTML to prevent XSS
@@ -196,7 +222,16 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     $encodedResourceGroup = ConvertTo-HtmlEncoded $rec.ResourceGroup
                     $encodedImpact = ConvertTo-HtmlEncoded $rec.Impact
                     $encodedProblem = ConvertTo-HtmlEncoded $rec.Problem
-                    $encodedSolution = ConvertTo-HtmlEncoded $rec.Solution
+                    
+                    # Use Description if Problem == Solution (Az.Advisor mode) and Description exists
+                    # This indicates generic duplicated text; use the more informative Description
+                    # For API mode where Problem != Solution, keep original Solution
+                    $solutionText = if ($rec.Problem -eq $rec.Solution -and $rec.Description) {
+                        $rec.Description
+                    } else {
+                        $rec.Solution
+                    }
+                    $encodedSolution = ConvertTo-HtmlEncoded $solutionText
                     $encodedSubscriptionId = ConvertTo-HtmlEncoded $rec.SubscriptionId
                     
                     # Validate and sanitize CSS class name to prevent CSS injection
