@@ -169,9 +169,25 @@ Gets recommendations using the REST API method
                 
                 $recommendations = if ($SubscriptionId) {
                     # Query specific subscriptions
+                    # Store the current context to restore later
+                    $originalContext = Get-AzContext
+                    
                     foreach ($subId in $SubscriptionId) {
                         Write-Verbose "Querying subscription via Az.Advisor: $subId"
-                        Get-AzAdvisorRecommendation -Filter $filter | Where-Object $subcategoryFilter
+                        
+                        # Set context to the specific subscription
+                        try {
+                            $null = Set-AzContext -SubscriptionId $subId -ErrorAction Stop
+                            Get-AzAdvisorRecommendation -Filter $filter | Where-Object $subcategoryFilter
+                        }
+                        catch {
+                            Write-Warning "Failed to set context or query subscription $($subId): $_"
+                        }
+                    }
+                    
+                    # Restore the original context
+                    if ($originalContext) {
+                        $null = Set-AzContext -Context $originalContext
                     }
                 }
                 else {
