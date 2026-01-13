@@ -38,12 +38,14 @@ Disconnect-AzRetirementMonitor
 ## What Changed in v2.0?
 
 ### ✅ Default Method (NEW)
+
 - Uses **Az.Advisor PowerShell module**
 - Full parity with Azure Portal
 - No need for `Connect-AzRetirementMonitor`
 - Just run `Connect-AzAccount` and go!
 
 ### ⚙️ API Method (Still Available)
+
 - Uses **REST API** directly
 - Requires `Connect-AzRetirementMonitor -UsingAPI`
 - Use `-UseAPI` switch on `Get-AzRetirementRecommendation`
@@ -51,6 +53,7 @@ Disconnect-AzRetirementMonitor
 ## Common Commands
 
 ### Get All Recommendations
+
 ```powershell
 # Default method
 Get-AzRetirementRecommendation
@@ -60,11 +63,13 @@ Get-AzRetirementRecommendation -UseAPI
 ```
 
 ### Get Recommendations for Specific Subscriptions
+
 ```powershell
 Get-AzRetirementRecommendation -SubscriptionId "12345678-1234-1234-1234-123456789012"
 ```
 
 ### Export to Different Formats
+
 ```powershell
 # CSV
 Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.csv" -Format CSV
@@ -79,19 +84,25 @@ Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.h
 ## Troubleshooting
 
 ### "Az.Advisor module not available or not connected"
+
 **Solution**: Install the module and connect to Azure
+
 ```powershell
 Install-Module -Name Az.Advisor -Scope CurrentUser
 Connect-AzAccount
 ```
 
 ### "Not authenticated. Run Connect-AzRetirementMonitor -UsingAPI first"
+
 **Solution**: You're trying to use API mode. Either:
+
 1. Remove `-UseAPI` to use default method, OR
 2. Run `Connect-AzRetirementMonitor -UsingAPI` first
 
 ### "Connect-AzRetirementMonitor requires -UsingAPI parameter"
+
 **Solution**: This is expected! For default method, you don't need `Connect-AzRetirementMonitor`.
+
 ```powershell
 # For default method (recommended)
 Connect-AzAccount  # NOT Connect-AzRetirementMonitor
@@ -103,18 +114,21 @@ Connect-AzRetirementMonitor -UsingAPI
 ## Migration from v1.x
 
 **Old workflow:**
+
 ```powershell
 Connect-AzRetirementMonitor
 Get-AzRetirementRecommendation
 ```
 
 **New workflow (recommended):**
+
 ```powershell
 Connect-AzAccount
 Get-AzRetirementRecommendation
 ```
 
 **New workflow (API method):**
+
 ```powershell
 Connect-AzRetirementMonitor -UsingAPI
 Get-AzRetirementRecommendation -UseAPI
