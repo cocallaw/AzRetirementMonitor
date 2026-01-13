@@ -13,6 +13,33 @@ Azure services evolve constantly, with features, APIs, and entire services being
 
 **AzRetirementMonitor** helps you proactively identify Azure resources affected by upcoming retirements by querying Azure Advisor for service upgrade and retirement recommendations across all your subscriptions. This gives you time to plan migrations and upgrades before services are discontinued.
 
+## 🚀 Version 2.0.0 - Breaking Changes
+
+**Version 2.0.0 introduces a major change in how the module works:**
+
+- **Default behavior**: Now uses Az.Advisor PowerShell module (full parity with Azure Advisor)
+- **API mode**: Available via `-UseAPI` switch on Get-AzRetirementRecommendation
+- **Connect-AzRetirementMonitor**: Now only needed for API mode and requires `-UsingAPI` switch
+
+### Migration Guide from v1.x
+
+**Old workflow (v1.x):**
+```powershell
+Connect-AzRetirementMonitor
+Get-AzRetirementRecommendation
+```
+
+**New workflow (v2.0):**
+```powershell
+# Default method (recommended - uses Az.Advisor module)
+Connect-AzAccount
+Get-AzRetirementRecommendation
+
+# API method (if you prefer the REST API)
+Connect-AzRetirementMonitor -UsingAPI
+Get-AzRetirementRecommendation -UseAPI
+```
+
 ## How Do I Install It?
 
 ### From PowerShell Gallery (Recommended)
@@ -37,16 +64,48 @@ Install-Module -Name AzRetirementMonitor -Scope CurrentUser
 
 ### Prerequisites
 
-- **PowerShell 7.0 or later**
-- **Authentication method** (one of the following):
-  - Azure CLI (`az`) - Default and recommended
+**For Default Method (Recommended):**
+- PowerShell 7.0 or later
+- Az.Advisor module: `Install-Module -Name Az.Advisor`
+- Az.Accounts module: `Install-Module -Name Az.Accounts`
+
+**For API Method (Alternative):**
+- PowerShell 7.0 or later
+- One of the following:
+  - Azure CLI (`az`)
   - Az.Accounts PowerShell module
 
 ## How Do I Authenticate?
 
-AzRetirementMonitor supports two authentication methods:
+### Default Method: Az.Advisor PowerShell Module (Recommended)
 
-### Option 1: Azure CLI (Default)
+This method provides **full parity** with Azure Advisor data.
+
+1. Install the required modules:
+
+   ```powershell
+   Install-Module -Name Az.Advisor, Az.Accounts -Scope CurrentUser
+   ```
+
+2. Connect to Azure:
+
+   ```powershell
+   Connect-AzAccount
+   ```
+
+3. Get retirement recommendations:
+
+   ```powershell
+   Get-AzRetirementRecommendation
+   ```
+
+**That's it!** No need to run `Connect-AzRetirementMonitor` for this method.
+
+### Alternative: REST API Method
+
+If you prefer to use the REST API instead of the Az.Advisor module:
+
+#### Option 1: Azure CLI
 
 1. Install the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 2. Log in to Azure:
@@ -55,13 +114,19 @@ AzRetirementMonitor supports two authentication methods:
    az login
    ```
 
-3. Connect the module:
+3. Connect the module for API access:
 
    ```powershell
-   Connect-AzRetirementMonitor
+   Connect-AzRetirementMonitor -UsingAPI
    ```
 
-### Option 2: Az PowerShell Module
+4. Get retirement recommendations:
+
+   ```powershell
+   Get-AzRetirementRecommendation -UseAPI
+   ```
+
+#### Option 2: Az PowerShell Module
 
 1. Install Az.Accounts:
 
@@ -75,31 +140,63 @@ AzRetirementMonitor supports two authentication methods:
    Connect-AzAccount
    ```
 
-3. Connect the module using Az PowerShell:
+3. Connect the module for API access using Az PowerShell:
 
    ```powershell
-   Connect-AzRetirementMonitor -UseAzPowerShell
+   Connect-AzRetirementMonitor -UsingAPI -UseAzPowerShell
+   ```
+
+4. Get retirement recommendations:
+
+   ```powershell
+   Get-AzRetirementRecommendation -UseAPI
    ```
 
 ## What Commands Are Available?
 
-### Connect-AzRetirementMonitor
+### Get-AzRetirementRecommendation
 
-Authenticates to Azure and obtains an access token for subsequent API calls.
+**Main command** - Retrieves Azure Advisor recommendations related to service retirements and deprecations.
 
-The token is validated to ensure it's scoped to `https://management.azure.com` and is used exclusively for read-only Azure Advisor operations.
+**Default behavior (v2.0+)**: Uses Az.Advisor PowerShell module
+**Alternative**: Use `-UseAPI` switch to query REST API directly
+
+```powershell
+# Get all retirement recommendations (default Az.Advisor method)
+Get-AzRetirementRecommendation
+
+# Get recommendations for specific subscriptions
+Get-AzRetirementRecommendation -SubscriptionId "sub-id-1", "sub-id-2"
+
+# Use REST API instead (requires Connect-AzRetirementMonitor -UsingAPI first)
+Get-AzRetirementRecommendation -UseAPI
+```
 
 **Parameters:**
 
+- `SubscriptionId` - One or more subscription IDs (defaults to all subscriptions)
+- `UseAPI` - Use REST API instead of Az.Advisor module
+
+### Connect-AzRetirementMonitor
+
+⚠️ **IMPORTANT**: This command is **only needed for API mode** (when using `-UseAPI`).
+
+For the default Az.Advisor method, use `Connect-AzAccount` instead.
+
+Authenticates to Azure and obtains an access token for REST API calls.
+
+**Parameters:**
+
+- `-UsingAPI` (required): Confirms you intend to use API-based access
 - `-UseAzCLI` (default): Use Azure CLI authentication
 - `-UseAzPowerShell`: Use Az.Accounts PowerShell module authentication
 
 ```powershell
-# Using Azure CLI (default)
-Connect-AzRetirementMonitor
+# For API access with Azure CLI (default)
+Connect-AzRetirementMonitor -UsingAPI
 
-# Using Az PowerShell module
-Connect-AzRetirementMonitor -UseAzPowerShell
+# For API access with Az PowerShell module
+Connect-AzRetirementMonitor -UsingAPI -UseAzPowerShell
 ```
 
 ### Disconnect-AzRetirementMonitor
@@ -108,40 +205,30 @@ Clears the access token stored by the module. This does not affect your Azure CL
 
 The token is securely cleared from module memory and cannot be recovered after disconnection.
 
+**Only relevant when using API mode.**
+
 ```powershell
-# Disconnect from AzRetirementMonitor
 Disconnect-AzRetirementMonitor
 ```
 
-### Get-AzRetirementRecommendation
-
-Retrieves Azure Advisor recommendations related to service retirements and deprecations. This function specifically returns only HighAvailability category recommendations with ServiceUpgradeAndRetirement subcategory.
-
-```powershell
-# Get all retirement recommendations across all subscriptions
-Get-AzRetirementRecommendation
-
-# Get recommendations for specific subscriptions
-Get-AzRetirementRecommendation -SubscriptionId "sub-id-1", "sub-id-2"
-```
-
-**Parameters:**
-
-- `SubscriptionId` - One or more subscription IDs (defaults to all subscriptions)
-
-**Note:** This function is hardcoded to return only recommendations where Category is 'HighAvailability' and SubCategory is 'ServiceUpgradeAndRetirement'.
-
 ### Get-AzRetirementMetadataItem
 
-Retrieves metadata about retirement recommendation types from Azure Advisor, filtered for HighAvailability category and ServiceUpgradeAndRetirement subcategory.
+Retrieves metadata about retirement recommendation types from Azure Advisor.
+
+**Note**: This function only works with API mode as Az.Advisor module does not expose metadata cmdlets.
 
 ```powershell
+# Requires Connect-AzRetirementMonitor -UsingAPI first
 Get-AzRetirementMetadataItem
+```
+
 ```
 
 ### Export-AzRetirementReport
 
 Exports retirement recommendations to various formats for reporting and analysis.
+
+Works with recommendations from both default (Az.Advisor) and API methods.
 
 ```powershell
 # Export to CSV
@@ -176,17 +263,17 @@ For more information, see [Azure Advisor documentation](https://learn.microsoft.
 
 ## Example Output
 
-### Get-AzRetirementRecommendation
+### Get-AzRetirementRecommendation (Default Method)
 
 ```powershell
-PS> Connect-AzRetirementMonitor
-Authenticated to Azure successfully
-
+PS> Connect-AzAccount
 PS> Get-AzRetirementRecommendation
 
 SubscriptionId   : 12345678-1234-1234-1234-123456789012
 ResourceId       : /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/myRG/providers/Microsoft.Compute/virtualMachines/myVM
 ResourceName     : myVM
+ResourceType     : Microsoft.Compute/virtualMachines
+ResourceGroup    : myRG
 Category         : HighAvailability
 Impact           : High
 Problem          : Virtual machine is using a retiring VM size
@@ -196,6 +283,7 @@ LastUpdated      : 2024-01-15T10:30:00Z
 IsRetirement     : True
 RecommendationId : abc123-def456-ghi789
 LearnMoreLink    : https://learn.microsoft.com/azure/virtual-machines/sizes-previous-gen
+ResourceLink     : https://portal.azure.com/#resource/subscriptions/.../myVM
 ```
 
 ### Export-AzRetirementReport
@@ -212,33 +300,67 @@ This creates an HTML report with all retirement recommendations, including resou
 
 ## Usage Workflow
 
-Here's a typical workflow for monitoring Azure retirements:
+### Recommended Workflow (Default Az.Advisor Method)
 
 ```powershell
-# 1. Authenticate
-Connect-AzRetirementMonitor
+# 1. Ensure Az.Advisor is installed
+Install-Module -Name Az.Advisor, Az.Accounts -Scope CurrentUser
 
-# 2. Get retirement recommendations
+# 2. Authenticate to Azure
+Connect-AzAccount
+
+# 3. Get retirement recommendations
 $recommendations = Get-AzRetirementRecommendation
 
+# 4. Review the recommendations
+$recommendations | Format-Table ResourceName, Impact, Problem, Solution -AutoSize
+
+# 5. Export for team review
+$recommendations | Export-AzRetirementReport -OutputPath "retirement-report.html" -Format HTML
+```
+
+### Alternative Workflow (API Method)
+
+```powershell
+# 1. Authenticate for API access
+Connect-AzRetirementMonitor -UsingAPI
+
+# 2. Get retirement recommendations via API
+$recommendations = Get-AzRetirementRecommendation -UseAPI
+
 # 3. Review the recommendations
-$recommendations | Format-Table ResourceName, Impact, Problem, Solution
+$recommendations | Format-Table ResourceName, Impact, Problem, Solution -AutoSize
 
 # 4. Export for team review
 $recommendations | Export-AzRetirementReport -OutputPath "retirement-report.csv" -Format CSV
 
-# 5. Get metadata about retirement types (optional)
+# 5. Get metadata about retirement types (API only)
 Get-AzRetirementMetadataItem
 
-# 6. Disconnect when finished (optional)
+# 6. Disconnect when finished
 Disconnect-AzRetirementMonitor
 ```
 
+## Comparison: Default vs API Method
+
+| Feature | Default (Az.Advisor) | API Method |
+|---------|---------------------|------------|
+| **Data Parity** | ✅ Full parity with Azure Portal | ⚠️ May have slight differences |
+| **Authentication** | `Connect-AzAccount` | `Connect-AzRetirementMonitor -UsingAPI` |
+| **Module Required** | Az.Advisor, Az.Accounts | None (uses REST API) |
+| **Usage** | `Get-AzRetirementRecommendation` | `Get-AzRetirementRecommendation -UseAPI` |
+| **Metadata** | ❌ Not available | ✅ `Get-AzRetirementMetadataItem` |
+| **Recommended** | ✅ Yes | Use when Az.Advisor unavailable |
+
 ## How Does Authentication and Token Management Work?
 
-### Security Model
+### Default Method (Az.Advisor)
 
-AzRetirementMonitor uses a **read-only, scoped token** approach to ensure security and isolation:
+Uses standard Azure PowerShell authentication via `Connect-AzAccount`. The Az.Advisor module handles all authentication and token management internally. Your credentials are managed by the Az.Accounts module using industry-standard OAuth flows.
+
+### API Method
+
+The API method uses a **read-only, scoped token** approach to ensure security and isolation:
 
 1. **Token Acquisition**: The module obtains a time-limited access token from your existing Azure authentication:
    - **Azure CLI**: Uses `az account get-access-token` to request a token from your logged-in session
@@ -257,23 +379,23 @@ AzRetirementMonitor uses a **read-only, scoped token** approach to ensure securi
    - Cannot be used to modify Azure resources
 
 4. **Module Isolation**: The module's authentication is completely isolated:
-   - `Connect-AzRetirementMonitor` **does not** authenticate you to Azure (you must already be logged in)
-   - `Connect-AzRetirementMonitor` **only** requests an access token from your existing session
+   - `Connect-AzRetirementMonitor -UsingAPI` **does not** authenticate you to Azure (you must already be logged in)
+   - `Connect-AzRetirementMonitor -UsingAPI` **only** requests an access token from your existing session
    - `Disconnect-AzRetirementMonitor` **only** clears the module's stored token
    - `Disconnect-AzRetirementMonitor` **does not** affect your Azure CLI or Az.Accounts session
    - You remain logged in to Azure CLI (`az login`) or Az.Accounts (`Connect-AzAccount`) after disconnecting
 
-### Token Lifecycle
+### Token Lifecycle (API Method)
 
 ```powershell
 # You authenticate to Azure first (outside the module)
 az login  # or Connect-AzAccount
 
 # Module requests a token from your session (does not re-authenticate)
-Connect-AzRetirementMonitor
+Connect-AzRetirementMonitor -UsingAPI
 
 # Module uses the token for API calls
-Get-AzRetirementRecommendation
+Get-AzRetirementRecommendation -UseAPI
 
 # Module clears its token (you remain logged in to Azure)
 Disconnect-AzRetirementMonitor
