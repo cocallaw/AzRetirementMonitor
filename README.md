@@ -68,13 +68,11 @@ Install-Module -Name AzRetirementMonitor -Scope CurrentUser
 ### Prerequisites
 
 **For Default Method (Recommended):**
-
 - **PowerShell 5.1 or later** (Compatible with both Desktop 5.1 and Core 7+)
 - Az.Advisor module: `Install-Module -Name Az.Advisor`
 - Az.Accounts module: `Install-Module -Name Az.Accounts`
 
 **For API Method (Alternative):**
-
 - **PowerShell 5.1 or later** (Compatible with both Desktop 5.1 and Core 7+)
 - One of the following:
   - Azure CLI (`az`)
