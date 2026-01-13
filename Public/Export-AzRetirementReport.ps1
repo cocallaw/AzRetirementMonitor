@@ -2,6 +2,25 @@ function Export-AzRetirementReport {
 <#
 .SYNOPSIS
 Exports retirement recommendations to CSV, JSON, or HTML
+.DESCRIPTION
+Exports retirement recommendations retrieved from Get-AzRetirementRecommendation to various
+formats for reporting and analysis. Works with recommendations from both the default Az.Advisor
+method and the API method.
+.PARAMETER Recommendations
+Recommendation objects from Get-AzRetirementRecommendation (accepts pipeline input)
+.PARAMETER OutputPath
+File path for the exported report
+.PARAMETER Format
+Export format: CSV, JSON, or HTML (default: CSV)
+.EXAMPLE
+Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.csv" -Format CSV
+Exports recommendations to CSV format
+.EXAMPLE
+Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.html" -Format HTML
+Exports recommendations to HTML format
+.EXAMPLE
+Get-AzRetirementRecommendation -UseAPI | Export-AzRetirementReport -OutputPath "report.json" -Format JSON
+Exports API-sourced recommendations to JSON format
 #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
     param(
