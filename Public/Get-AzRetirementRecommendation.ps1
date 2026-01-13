@@ -2,61 +2,198 @@ function Get-AzRetirementRecommendation {
 <#
 .SYNOPSIS
 Gets Azure service retirement recommendations for HighAvailability category and ServiceUpgradeAndRetirement subcategory
+.DESCRIPTION
+By default, uses the Az.Advisor PowerShell module to retrieve recommendations. This provides
+complete parity with Azure Advisor data. Optionally, use -UseAPI to query the REST API directly
+(requires Connect-AzRetirementMonitor first).
+
+The Az.Advisor module method requires:
+- Az.Advisor module installed
+- Active Azure PowerShell session (Connect-AzAccount)
+
+The API method requires:
+- Connect-AzRetirementMonitor called first
+- Valid access token
+.PARAMETER SubscriptionId
+One or more subscription IDs to query. Defaults to all subscriptions.
+.PARAMETER UseAPI
+Use the Azure REST API instead of Az.Advisor PowerShell module. Requires Connect-AzRetirementMonitor first.
+.EXAMPLE
+Get-AzRetirementRecommendation
+Gets all retirement recommendations using Az.Advisor module (default)
+.EXAMPLE
+Get-AzRetirementRecommendation -SubscriptionId "12345678-1234-1234-1234-123456789012"
+Gets recommendations for a specific subscription using Az.Advisor module
+.EXAMPLE
+Get-AzRetirementRecommendation -UseAPI
+Gets recommendations using the REST API method
 #>
     [CmdletBinding()]
     param(
         [Parameter(ValueFromPipeline)]
-        [string[]]$SubscriptionId
+        [string[]]$SubscriptionId,
+
+        [Parameter()]
+        [switch]$UseAPI
     )
 
     begin {
-        if (-not $script:AccessToken) {
-            throw "Not authenticated. Run Connect-AzRetirementMonitor first."
-        }
-
-        if (-not (Test-AzRetirementMonitorToken)) {
-            throw "Access token has expired. Run Connect-AzRetirementMonitor again."
-        }
-
-        $headers = @{
-            Authorization  = "Bearer $script:AccessToken"
-            "Content-Type" = "application/json"
-        }
-
         $allRecommendations = [System.Collections.Generic.List[object]]::new()
+
+        if ($UseAPI) {
+            # API mode - requires authentication via Connect-AzRetirementMonitor
+            if (-not $script:AccessToken) {
+                throw "Not authenticated. Run Connect-AzRetirementMonitor -UsingAPI first."
+            }
+
+            if (-not (Test-AzRetirementMonitorToken)) {
+                throw "Access token has expired. Run Connect-AzRetirementMonitor -UsingAPI again."
+            }
+
+            $headers = @{
+                Authorization  = "Bearer $script:AccessToken"
+                "Content-Type" = "application/json"
+            }
+        }
+        else {
+            # PowerShell module mode (default) - requires Az.Advisor and active session
+            if (-not (Test-AzAdvisorSession)) {
+                throw "Az.Advisor module not available or not connected. Run Connect-AzAccount first or use -UseAPI with Connect-AzRetirementMonitor."
+            }
+        }
     }
 
     process {
-        if (-not $SubscriptionId) {
-            $subsUri = "https://management.azure.com/subscriptions?api-version=2020-01-01"
-            $subs = Invoke-AzPagedRequest -Uri $subsUri -Headers $headers
-            $SubscriptionId = $subs.subscriptionId
+        if ($UseAPI) {
+            # API-based retrieval (original implementation)
+            if (-not $SubscriptionId) {
+                $subsUri = "https://management.azure.com/subscriptions?api-version=2020-01-01"
+                $subs = Invoke-AzPagedRequest -Uri $subsUri -Headers $headers
+                $SubscriptionId = $subs.subscriptionId
+            }
+
+            foreach ($subId in $SubscriptionId) {
+                Write-Verbose "Querying subscription via API: $subId"
+
+                $uri = "https://management.azure.com/subscriptions/$subId/providers/Microsoft.Advisor/recommendations?api-version=$script:ApiVersion"
+
+                # Filter for HighAvailability category and ServiceUpgradeAndRetirement subcategory only
+                $filter = "Category eq 'HighAvailability' and SubCategory eq 'ServiceUpgradeAndRetirement'"
+                $uri += "&`$filter=$filter"
+
+                try {
+                    $recommendations = Invoke-AzPagedRequest `
+                        -Uri $uri `
+                        -Headers $headers
+
+                    foreach ($rec in $recommendations) {
+                        $isRetirement =
+                            $rec.properties.shortDescription.problem -match
+                            'retire|deprecat|end of life|eol|sunset'
+
+                        # Extract ResourceType from ResourceId
+                        $resourceId = $rec.properties.resourceMetadata.resourceId
+                        $resourceType = if ($resourceId) {
+                            # Extract provider/type from resourceId
+                            # Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Compute/virtualMachines/{name}
+                            if ($resourceId -match '/providers/([^/]+/[^/]+)(?:/|$)') {
+                                $matches[1]
+                            } else {
+                                "N/A"
+                            }
+                        } else {
+                            "N/A"
+                        }
+
+                        # Extract Resource Group from ResourceId
+                        $resourceGroup = if ($resourceId) {
+                            # Extract resource group name from resourceId
+                            # Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/...
+                            if ($resourceId -match '/resourceGroups/([^/]+)') {
+                                $matches[1]
+                            } else {
+                                "N/A"
+                            }
+                        } else {
+                            "N/A"
+                        }
+
+                        # Build Azure Resource portal link
+                        $resourceLink = if ($resourceId) {
+                            "https://portal.azure.com/#resource$resourceId"
+                        } else {
+                            $null
+                        }
+
+                        $allRecommendations.Add([PSCustomObject]@{
+                            SubscriptionId   = $subId
+                            ResourceId       = $resourceId
+                            ResourceName     = ($resourceId -split "/")[-1]
+                            ResourceType     = $resourceType
+                            ResourceGroup    = $resourceGroup
+                            Category         = $rec.properties.category
+                            Impact           = $rec.properties.impact
+                            Problem          = $rec.properties.shortDescription.problem
+                            Solution         = $rec.properties.shortDescription.solution
+                            Description      = $rec.properties.extendedProperties.displayName
+                            LastUpdated      = $rec.properties.lastUpdated
+                            IsRetirement     = $isRetirement
+                            RecommendationId = $rec.name
+                            LearnMoreLink    = $rec.properties.learnMoreLink
+                            ResourceLink     = $resourceLink
+                        })
+                    }
+                }
+                catch {
+                    Write-Warning "Failed to query subscription $($subId): $_"
+                }
+            }
         }
-
-        foreach ($subId in $SubscriptionId) {
-            Write-Verbose "Querying subscription: $subId"
-
-            $uri = "https://management.azure.com/subscriptions/$subId/providers/Microsoft.Advisor/recommendations?api-version=$script:ApiVersion"
-
-            # Filter for HighAvailability category and ServiceUpgradeAndRetirement subcategory only
-            $filter = "Category eq 'HighAvailability' and SubCategory eq 'ServiceUpgradeAndRetirement'"
-            $uri += "&`$filter=$filter"
-
+        else {
+            # PowerShell module-based retrieval (new default)
             try {
-                $recommendations = Invoke-AzPagedRequest `
-                    -Uri $uri `
-                    -Headers $headers
+                # Get recommendations and filter by Category first (more efficient)
+                $filter = "Category eq 'HighAvailability'"
+                
+                $recommendations = if ($SubscriptionId) {
+                    # Query specific subscriptions
+                    foreach ($subId in $SubscriptionId) {
+                        Write-Verbose "Querying subscription via Az.Advisor: $subId"
+                        Get-AzAdvisorRecommendation -Filter $filter | Where-Object {
+                            # Parse extended properties to check subcategory
+                            if ($_.ExtendedProperty) {
+                                $extProps = $_.ExtendedProperty | ConvertFrom-Json
+                                $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement'
+                            }
+                            else {
+                                $false
+                            }
+                        }
+                    }
+                }
+                else {
+                    # Query all subscriptions
+                    Write-Verbose "Querying all subscriptions via Az.Advisor"
+                    Get-AzAdvisorRecommendation -Filter $filter | Where-Object {
+                        # Parse extended properties to check subcategory
+                        if ($_.ExtendedProperty) {
+                            $extProps = $_.ExtendedProperty | ConvertFrom-Json
+                            $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement'
+                        }
+                        else {
+                            $false
+                        }
+                    }
+                }
 
                 foreach ($rec in $recommendations) {
                     $isRetirement =
-                        $rec.properties.shortDescription.problem -match
+                        $rec.ShortDescriptionProblem -match
                         'retire|deprecat|end of life|eol|sunset'
 
-                    # Extract ResourceType from ResourceId
-                    $resourceId = $rec.properties.resourceMetadata.resourceId
+                    # Extract properties from the Az.Advisor recommendation object
+                    $resourceId = $rec.ResourceId
                     $resourceType = if ($resourceId) {
-                        # Extract provider/type from resourceId
-                        # Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Compute/virtualMachines/{name}
                         if ($resourceId -match '/providers/([^/]+/[^/]+)(?:/|$)') {
                             $matches[1]
                         } else {
@@ -66,11 +203,18 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         "N/A"
                     }
 
-                    # Extract Resource Group from ResourceId
                     $resourceGroup = if ($resourceId) {
-                        # Extract resource group name from resourceId
-                        # Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/...
                         if ($resourceId -match '/resourceGroups/([^/]+)') {
+                            $matches[1]
+                        } else {
+                            "N/A"
+                        }
+                    } else {
+                        "N/A"
+                    }
+
+                    $subscriptionId = if ($resourceId) {
+                        if ($resourceId -match '/subscriptions/([^/]+)') {
                             $matches[1]
                         } else {
                             "N/A"
@@ -86,27 +230,41 @@ Gets Azure service retirement recommendations for HighAvailability category and 
                         $null
                     }
 
+                    # Parse extended properties for description
+                    $description = if ($rec.ExtendedProperty) {
+                        try {
+                            $extProps = $rec.ExtendedProperty | ConvertFrom-Json
+                            $extProps.displayName
+                        }
+                        catch {
+                            $null
+                        }
+                    }
+                    else {
+                        $null
+                    }
+
                     $allRecommendations.Add([PSCustomObject]@{
-                        SubscriptionId   = $subId
+                        SubscriptionId   = $subscriptionId
                         ResourceId       = $resourceId
                         ResourceName     = ($resourceId -split "/")[-1]
                         ResourceType     = $resourceType
                         ResourceGroup    = $resourceGroup
-                        Category         = $rec.properties.category
-                        Impact           = $rec.properties.impact
-                        Problem          = $rec.properties.shortDescription.problem
-                        Solution         = $rec.properties.shortDescription.solution
-                        Description      = $rec.properties.extendedProperties.displayName
-                        LastUpdated      = $rec.properties.lastUpdated
+                        Category         = $rec.Category
+                        Impact           = $rec.Impact
+                        Problem          = $rec.ShortDescriptionProblem
+                        Solution         = $rec.ShortDescriptionSolution
+                        Description      = $description
+                        LastUpdated      = $rec.LastUpdated
                         IsRetirement     = $isRetirement
-                        RecommendationId = $rec.name
-                        LearnMoreLink    = $rec.properties.learnMoreLink
+                        RecommendationId = $rec.Name
+                        LearnMoreLink    = if ($rec.LearnMoreLink) { $rec.LearnMoreLink } else { $null }
                         ResourceLink     = $resourceLink
                     })
                 }
             }
             catch {
-                Write-Warning "Failed to query subscription $($subId) $_"
+                Write-Error "Failed to retrieve recommendations via Az.Advisor: $_"
             }
         }
     }

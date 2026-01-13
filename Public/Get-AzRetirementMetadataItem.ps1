@@ -2,16 +2,19 @@ function Get-AzRetirementMetadataItem {
 <#
 .SYNOPSIS
 Gets Azure Advisor recommendation metadata
+.DESCRIPTION
+Note: This function only works with the -UseAPI mode as Az.Advisor module does not 
+expose metadata retrieval cmdlets. You must run Connect-AzRetirementMonitor -UsingAPI first.
 #>
     [CmdletBinding()]
     param()
 
     if (-not $script:AccessToken) {
-        throw "Not authenticated. Run Connect-AzRetirementMonitor first."
+        throw "Not authenticated. Run Connect-AzRetirementMonitor -UsingAPI first. Note: This function requires API access as Az.Advisor module does not expose metadata cmdlets."
     }
 
     if (-not (Test-AzRetirementMonitorToken)) {
-        throw "Access token has expired. Run Connect-AzRetirementMonitor again."
+        throw "Access token has expired. Run Connect-AzRetirementMonitor -UsingAPI again."
     }
 
     $headers = @{
