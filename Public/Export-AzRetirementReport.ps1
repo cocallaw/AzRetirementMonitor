@@ -46,7 +46,23 @@ Exports retirement recommendations to CSV, JSON, or HTML
 
         switch ($Format) {
             "CSV" {
-                $transformedRecs | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8
+                # Sanitize potential formula injections for CSV consumers (e.g., Excel)
+                $safeRecs = $transformedRecs | ForEach-Object {
+                    # Clone the object so JSON/HTML exports remain unaffected
+                    $safe = $_ | Select-Object *
+                    foreach ($prop in $safe.PSObject.Properties) {
+                        $value = $prop.Value
+                        if ($value -is [string] -and $value.Length -gt 0) {
+                            $firstChar = $value[0]
+                            if ($firstChar -in '=','+','-','@') {
+                                # Prefix with a single quote so spreadsheet apps treat it as text
+                                $prop.Value = "'" + $value
+                            }
+                        }
+                    }
+                    $safe
+                }
+                $safeRecs | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8
             }
             "JSON" {
                 $transformedRecs | ConvertTo-Json -Depth 10 | Out-File $OutputPath -Encoding utf8
