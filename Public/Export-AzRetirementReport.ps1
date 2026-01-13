@@ -2,6 +2,25 @@ function Export-AzRetirementReport {
 <#
 .SYNOPSIS
 Exports retirement recommendations to CSV, JSON, or HTML
+.DESCRIPTION
+Exports retirement recommendations retrieved from Get-AzRetirementRecommendation to various
+formats for reporting and analysis. Works with recommendations from both the default Az.Advisor
+method and the API method.
+.PARAMETER Recommendations
+Recommendation objects from Get-AzRetirementRecommendation (accepts pipeline input)
+.PARAMETER OutputPath
+File path for the exported report
+.PARAMETER Format
+Export format: CSV, JSON, or HTML (default: CSV)
+.EXAMPLE
+Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.csv" -Format CSV
+Exports recommendations to CSV format
+.EXAMPLE
+Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.html" -Format HTML
+Exports recommendations to HTML format
+.EXAMPLE
+Get-AzRetirementRecommendation -UseAPI | Export-AzRetirementReport -OutputPath "report.json" -Format JSON
+Exports API-sourced recommendations to JSON format
 #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
     param(
@@ -28,12 +47,67 @@ Exports retirement recommendations to CSV, JSON, or HTML
             return
         }
 
+        # Transform data to use Description in Solution column for Az.Advisor mode
+        # (when Problem and Solution are the same, Description usually has better info)
+        # This transformation is used for CSV, JSON, and HTML formats
+        $transformedRecs = $allRecs | ForEach-Object {
+            # Use Description if Problem == Solution and Description exists
+            # This indicates Az.Advisor mode where generic text is duplicated
+            $solutionValue = if ($_.Problem -eq $_.Solution -and $_.Description) {
+                $_.Description
+            } else {
+                $_.Solution
+            }
+            
+            # Create new object with properly converted properties
+            # This ensures all properties are strings (not arrays) for proper export
+            [PSCustomObject]@{
+                SubscriptionId   = $_.SubscriptionId
+                ResourceId       = $_.ResourceId
+                ResourceName     = $_.ResourceName
+                ResourceType     = $_.ResourceType
+                ResourceGroup    = $_.ResourceGroup
+                Category         = $_.Category
+                Impact           = $_.Impact
+                Problem          = $_.Problem
+                Description      = $_.Description
+                LastUpdated      = $_.LastUpdated
+                IsRetirement     = $_.IsRetirement
+                RecommendationId = $_.RecommendationId
+                LearnMoreLink    = $_.LearnMoreLink
+                ResourceLink     = $_.ResourceLink
+                Solution         = $solutionValue
+            }
+        }
+
         switch ($Format) {
             "CSV" {
-                $allRecs | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8
+                # Sanitize potential formula injections for CSV consumers (e.g., Excel)
+                $safeRecs = $transformedRecs | ForEach-Object {
+                    # Create new object with sanitized values
+                    $rec = $_
+                    [PSCustomObject]@{
+                        SubscriptionId   = if ($rec.SubscriptionId -is [string] -and $rec.SubscriptionId.Length -gt 0 -and $rec.SubscriptionId[0] -in '=','+','-','@') { "'" + $rec.SubscriptionId } else { $rec.SubscriptionId }
+                        ResourceId       = if ($rec.ResourceId -is [string] -and $rec.ResourceId.Length -gt 0 -and $rec.ResourceId[0] -in '=','+','-','@') { "'" + $rec.ResourceId } else { $rec.ResourceId }
+                        ResourceName     = if ($rec.ResourceName -is [string] -and $rec.ResourceName.Length -gt 0 -and $rec.ResourceName[0] -in '=','+','-','@') { "'" + $rec.ResourceName } else { $rec.ResourceName }
+                        ResourceType     = if ($rec.ResourceType -is [string] -and $rec.ResourceType.Length -gt 0 -and $rec.ResourceType[0] -in '=','+','-','@') { "'" + $rec.ResourceType } else { $rec.ResourceType }
+                        ResourceGroup    = if ($rec.ResourceGroup -is [string] -and $rec.ResourceGroup.Length -gt 0 -and $rec.ResourceGroup[0] -in '=','+','-','@') { "'" + $rec.ResourceGroup } else { $rec.ResourceGroup }
+                        Category         = if ($rec.Category -is [string] -and $rec.Category.Length -gt 0 -and $rec.Category[0] -in '=','+','-','@') { "'" + $rec.Category } else { $rec.Category }
+                        Impact           = if ($rec.Impact -is [string] -and $rec.Impact.Length -gt 0 -and $rec.Impact[0] -in '=','+','-','@') { "'" + $rec.Impact } else { $rec.Impact }
+                        Problem          = if ($rec.Problem -is [string] -and $rec.Problem.Length -gt 0 -and $rec.Problem[0] -in '=','+','-','@') { "'" + $rec.Problem } else { $rec.Problem }
+                        Description      = if ($rec.Description -is [string] -and $rec.Description.Length -gt 0 -and $rec.Description[0] -in '=','+','-','@') { "'" + $rec.Description } else { $rec.Description }
+                        LastUpdated      = if ($rec.LastUpdated -is [string] -and $rec.LastUpdated.Length -gt 0 -and $rec.LastUpdated[0] -in '=','+','-','@') { "'" + $rec.LastUpdated } else { $rec.LastUpdated }
+                        IsRetirement     = if ($rec.IsRetirement -is [string] -and $rec.IsRetirement.Length -gt 0 -and $rec.IsRetirement[0] -in '=','+','-','@') { "'" + $rec.IsRetirement } else { $rec.IsRetirement }
+                        RecommendationId = if ($rec.RecommendationId -is [string] -and $rec.RecommendationId.Length -gt 0 -and $rec.RecommendationId[0] -in '=','+','-','@') { "'" + $rec.RecommendationId } else { $rec.RecommendationId }
+                        LearnMoreLink    = if ($rec.LearnMoreLink -is [string] -and $rec.LearnMoreLink.Length -gt 0 -and $rec.LearnMoreLink[0] -in '=','+','-','@') { "'" + $rec.LearnMoreLink } else { $rec.LearnMoreLink }
+                        ResourceLink     = if ($rec.ResourceLink -is [string] -and $rec.ResourceLink.Length -gt 0 -and $rec.ResourceLink[0] -in '=','+','-','@') { "'" + $rec.ResourceLink } else { $rec.ResourceLink }
+                        Solution         = if ($rec.Solution -is [string] -and $rec.Solution.Length -gt 0 -and $rec.Solution[0] -in '=','+','-','@') { "'" + $rec.Solution } else { $rec.Solution }
+                    }
+                }
+                $safeRecs | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8
             }
             "JSON" {
-                $allRecs | ConvertTo-Json -Depth 10 | Out-File $OutputPath -Encoding utf8
+                $transformedRecs | ConvertTo-Json -Depth 10 | Out-File $OutputPath -Encoding utf8
             }
             "HTML" {
                 # Helper function to escape HTML to prevent XSS
@@ -45,7 +119,8 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     return [System.Net.WebUtility]::HtmlEncode($Text)
                 }
                 
-                $generatedTime = (Get-Date -AsUTC).ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
+                # PowerShell 5.1 compatible UTC time (Get-Date -AsUTC is PS 7+ only)
+                $generatedTime = [DateTime]::UtcNow.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
                 $totalCount = $allRecs.Count
                 
                 # Define CSS for professional styling
@@ -177,7 +252,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     <th>Resource Name</th>
                     <th>Resource Type</th>
                     <th>Problem</th>
-                    <th>Solution</th>
+                    <th>Description</th>
                     <th>Resource Group</th>
                     <th>Subscription ID</th>
                     <th>Resource Link</th>
@@ -188,7 +263,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
 "@
 
                 # Add table rows - collect in array for better performance
-                $tableRows = foreach ($rec in $allRecs) {
+                $tableRows = foreach ($rec in $transformedRecs) {
                     # HTML encode all user-provided data to prevent XSS
                     $encodedResourceName = ConvertTo-HtmlEncoded $rec.ResourceName
                     $encodedResourceType = ConvertTo-HtmlEncoded $rec.ResourceType

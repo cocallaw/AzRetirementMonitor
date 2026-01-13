@@ -108,7 +108,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             }
             
             # Call Connect-AzRetirementMonitor with UseAzPowerShell
-            Connect-AzRetirementMonitor -UseAzPowerShell
+            Connect-AzRetirementMonitor -UsingAPI -UseAzPowerShell
             
             # Verify the token was set correctly in module scope
             $module = Get-Module AzRetirementMonitor
@@ -131,7 +131,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             }
             
             # Call Connect-AzRetirementMonitor with UseAzPowerShell
-            Connect-AzRetirementMonitor -UseAzPowerShell
+            Connect-AzRetirementMonitor -UsingAPI -UseAzPowerShell
             
             # Verify the token was set correctly in module scope
             $module = Get-Module AzRetirementMonitor
@@ -201,6 +201,62 @@ Describe "Get-AzRetirementRecommendation" {
     }
 }
 
+Describe "Get-AzRetirementRecommendation Context Switching Logic" {
+    It "Should have context management code in the function" {
+        # Verify that the function source contains the necessary context management logic
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for Get-AzContext call to save original context
+        $functionDef | Should -Match 'Get-AzContext'
+        
+        # Check for Set-AzContext with SubscriptionId parameter
+        $functionDef | Should -Match 'Set-AzContext\s+-SubscriptionId'
+        
+        # Check for context verification logic
+        $functionDef | Should -Match 'could not be verified'
+        
+        # Check for context restoration with Context parameter
+        $functionDef | Should -Match 'Set-AzContext\s+-Context'
+    }
+    
+    It "Should have error handling for Set-AzContext failures" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for try-catch around Set-AzContext
+        $functionDef | Should -Match 'try\s*\{[^}]*Set-AzContext'
+        $functionDef | Should -Match 'Failed to set Azure context for subscription'
+    }
+    
+    It "Should have error handling for context restoration" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for error handling around context restoration
+        $functionDef | Should -Match 'Failed to restore original Azure context'
+    }
+    
+    It "Should have error handling for Get-AzAdvisorRecommendation failures" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for error handling around Get-AzAdvisorRecommendation
+        $functionDef | Should -Match 'Failed to query Advisor recommendations'
+    }
+    
+    It "Should verify subscription context after setting it" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check that the function verifies the context was set correctly
+        $functionDef | Should -Match 'context\.Subscription\.Id'
+        $functionDef | Should -Match '\$subId'
+    }
+    
+    It "Should use continue statement to skip failed subscriptions" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for continue statements in error handling
+        $functionDef | Should -Match 'continue'
+    }
+}
+
 Describe "Get-AzRetirementMetadataItem" {
     It "Should have no parameters" {
         $cmd = Get-Command Get-AzRetirementMetadataItem
@@ -233,6 +289,162 @@ Describe "Export-AzRetirementReport" {
         $cmd = Get-Command Export-AzRetirementReport
         $param = $cmd.Parameters['Recommendations']
         $param.Attributes.Where({$_.ValueFromPipeline}).Count | Should -BeGreaterThan 0
+    }
+}
+
+Describe "Export-AzRetirementReport Transformation Logic" {
+    BeforeAll {
+        # Create a temporary directory for test outputs
+        $script:TestOutputDir = Join-Path ([System.IO.Path]::GetTempPath()) "AzRetirementMonitorTests_$([guid]::NewGuid())"
+        New-Item -Path $script:TestOutputDir -ItemType Directory -Force | Out-Null
+    }
+    
+    AfterAll {
+        # Clean up test output directory
+        if (Test-Path $script:TestOutputDir) {
+            Remove-Item -Path $script:TestOutputDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    
+    Context "When Problem equals Solution (Az.Advisor mode)" {
+        It "Should replace Solution with Description in CSV when Description exists" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestVM"
+                ResourceType = "Microsoft.Compute/virtualMachines"
+                Problem = "Generic retirement notice"
+                Solution = "Generic retirement notice"
+                Description = "Detailed upgrade instructions for this VM"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "High"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-advisor-mode.csv"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format CSV -Confirm:$false
+            
+            $result = Import-Csv -Path $outputPath
+            $result.Solution | Should -Be "Detailed upgrade instructions for this VM"
+        }
+        
+        It "Should replace Solution with Description in JSON when Description exists" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestStorage"
+                ResourceType = "Microsoft.Storage/storageAccounts"
+                Problem = "Service retiring"
+                Solution = "Service retiring"
+                Description = "Migrate to new storage account type"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Medium"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-advisor-mode.json"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format JSON -Confirm:$false
+            
+            $result = Get-Content -Path $outputPath -Raw | ConvertFrom-Json
+            $result.Solution | Should -Be "Migrate to new storage account type"
+        }
+        
+        It "Should replace Solution with Description in HTML when Description exists" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestDB"
+                ResourceType = "Microsoft.Sql/servers/databases"
+                Problem = "Upgrade required"
+                Solution = "Upgrade required"
+                Description = "Move to SQL Database v2"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Low"
+                ResourceLink = "https://portal.azure.com/resource"
+                LearnMoreLink = "https://learn.microsoft.com/azure"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-advisor-mode.html"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format HTML -Confirm:$false
+            
+            $htmlContent = Get-Content -Path $outputPath -Raw
+            $htmlContent | Should -Match "Move to SQL Database v2"
+        }
+    }
+    
+    Context "When Problem differs from Solution (API mode)" {
+        It "Should keep original Solution in CSV when Problem differs" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestApp"
+                ResourceType = "Microsoft.Web/sites"
+                Problem = "API version deprecated"
+                Solution = "Update to API version 2023-01-01"
+                Description = "Additional context"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "High"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-api-mode.csv"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format CSV -Confirm:$false
+            
+            $result = Import-Csv -Path $outputPath
+            $result.Solution | Should -Be "Update to API version 2023-01-01"
+        }
+        
+        It "Should keep original Solution in JSON when Problem differs" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestFunction"
+                ResourceType = "Microsoft.Web/sites/functions"
+                Problem = "Runtime version retiring"
+                Solution = "Upgrade to .NET 8"
+                Description = "Migration guide available"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Medium"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-api-mode.json"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format JSON -Confirm:$false
+            
+            $result = Get-Content -Path $outputPath -Raw | ConvertFrom-Json
+            $result.Solution | Should -Be "Upgrade to .NET 8"
+        }
+    }
+    
+    Context "Edge cases" {
+        It "Should keep Solution when Description is null even if Problem equals Solution" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestResource"
+                ResourceType = "Microsoft.Test/resources"
+                Problem = "Action required"
+                Solution = "Action required"
+                Description = $null
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Low"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-null-description.csv"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format CSV -Confirm:$false
+            
+            $result = Import-Csv -Path $outputPath
+            $result.Solution | Should -Be "Action required"
+        }
+        
+        It "Should keep Solution when Description is empty string even if Problem equals Solution" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestResource2"
+                ResourceType = "Microsoft.Test/resources"
+                Problem = "Update needed"
+                Solution = "Update needed"
+                Description = ""
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Low"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-empty-description.csv"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format CSV -Confirm:$false
+            
+            $result = Import-Csv -Path $outputPath
+            $result.Solution | Should -Be "Update needed"
+        }
     }
 }
 
@@ -275,7 +487,7 @@ Describe "Token Expiration Validation" {
     }
     
     It "Get-AzRetirementRecommendation should throw when not authenticated" {
-        { Get-AzRetirementRecommendation -ErrorAction Stop } | Should -Throw "*Not authenticated*"
+        { Get-AzRetirementRecommendation -UseAPI -ErrorAction Stop } | Should -Throw "*Not authenticated*"
     }
     
     It "Get-AzRetirementMetadataItem should throw when token is expired" {
@@ -299,7 +511,7 @@ Describe "Token Expiration Validation" {
         $module = Get-Module AzRetirementMonitor
         & $module { param($token) $script:AccessToken = $token } $expiredToken
         
-        { Get-AzRetirementRecommendation -ErrorAction Stop } | Should -Throw "*expired*"
+        { Get-AzRetirementRecommendation -UseAPI -ErrorAction Stop } | Should -Throw "*expired*"
     }
     
     It "Should validate a token with future expiration as valid" {
