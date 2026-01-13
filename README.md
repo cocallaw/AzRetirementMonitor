@@ -20,6 +20,7 @@ Azure services evolve constantly, with features, APIs, and entire services being
 - **Default behavior**: Now uses Az.Advisor PowerShell module (full parity with Azure Advisor)
 - **API mode**: Available via `-UseAPI` switch on Get-AzRetirementRecommendation
 - **Connect-AzRetirementMonitor**: Now only needed for API mode and requires `-UsingAPI` switch
+- **PowerShell compatibility**: Now supports both PowerShell Desktop 5.1 and Core 7+
 
 ### Migration Guide from v1.x
 
@@ -65,12 +66,12 @@ Install-Module -Name AzRetirementMonitor -Scope CurrentUser
 ### Prerequisites
 
 **For Default Method (Recommended):**
-- PowerShell 7.0 or later
+- **PowerShell 5.1 or later** (Compatible with both Desktop 5.1 and Core 7+)
 - Az.Advisor module: `Install-Module -Name Az.Advisor`
 - Az.Accounts module: `Install-Module -Name Az.Accounts`
 
 **For API Method (Alternative):**
-- PowerShell 7.0 or later
+- **PowerShell 5.1 or later** (Compatible with both Desktop 5.1 and Core 7+)
 - One of the following:
   - Azure CLI (`az`)
   - Az.Accounts PowerShell module

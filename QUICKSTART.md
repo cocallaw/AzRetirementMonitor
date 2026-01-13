@@ -1,5 +1,7 @@
 # AzRetirementMonitor v2.0 - Quick Start Guide
 
+**Compatible with PowerShell 5.1+ (Desktop and Core)**
+
 ## Quick Start (Recommended Method)
 
 ```powershell

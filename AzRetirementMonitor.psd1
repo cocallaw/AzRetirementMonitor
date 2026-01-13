@@ -5,8 +5,8 @@
     Author               = 'Corey Callaway'
     CompanyName          = 'Independent'
     Description          = 'A PowerShell module for identifying and monitoring Azure service retirements and deprecation notices of Azure services in your subscriptions.'
-    PowerShellVersion    = '7.0'
-    CompatiblePSEditions = @('Core')
+    PowerShellVersion    = '5.1'
+    CompatiblePSEditions = @('Core', 'Desktop')
 
     FunctionsToExport    = @(
         'Connect-AzRetirementMonitor',
@@ -29,6 +29,7 @@
 - For API usage: Run Connect-AzRetirementMonitor -UsingAPI, then Get-AzRetirementRecommendation -UseAPI
 - Az.Advisor module is now recommended (checked at runtime)
 - Provides full parity with Azure Advisor recommendations
+- **PowerShell compatibility**: Now supports both PowerShell Core (7+) and Desktop (5.1)
 '@
         }
     }

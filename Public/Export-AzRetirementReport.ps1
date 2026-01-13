@@ -45,7 +45,8 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     return [System.Net.WebUtility]::HtmlEncode($Text)
                 }
                 
-                $generatedTime = (Get-Date -AsUTC).ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
+                # PowerShell 5.1 compatible UTC time (Get-Date -AsUTC is PS 7+ only)
+                $generatedTime = [DateTime]::UtcNow.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
                 $totalCount = $allRecs.Count
                 
                 # Define CSS for professional styling
