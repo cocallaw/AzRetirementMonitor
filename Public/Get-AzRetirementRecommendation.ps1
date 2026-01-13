@@ -178,10 +178,18 @@ Gets recommendations using the REST API method
                         # Set context to the specific subscription
                         try {
                             $null = Set-AzContext -SubscriptionId $subId -ErrorAction Stop
+                        }
+                        catch {
+                            Write-Warning "Failed to set Azure context for subscription $($subId): $_"
+                            continue
+                        }
+
+                        # Query Advisor recommendations for the current subscription
+                        try {
                             Get-AzAdvisorRecommendation -Filter $filter | Where-Object $subcategoryFilter
                         }
                         catch {
-                            Write-Warning "Failed to set context or query subscription $($subId): $_"
+                            Write-Warning "Failed to query Advisor recommendations for subscription $($subId): $_"
                         }
                     }
                     
