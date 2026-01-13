@@ -201,6 +201,62 @@ Describe "Get-AzRetirementRecommendation" {
     }
 }
 
+Describe "Get-AzRetirementRecommendation Context Switching Logic" {
+    It "Should have context management code in the function" {
+        # Verify that the function source contains the necessary context management logic
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for Get-AzContext call to save original context
+        $functionDef | Should -Match 'Get-AzContext'
+        
+        # Check for Set-AzContext with SubscriptionId parameter
+        $functionDef | Should -Match 'Set-AzContext\s+-SubscriptionId'
+        
+        # Check for context verification logic
+        $functionDef | Should -Match 'could not be verified'
+        
+        # Check for context restoration with Context parameter
+        $functionDef | Should -Match 'Set-AzContext\s+-Context'
+    }
+    
+    It "Should have error handling for Set-AzContext failures" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for try-catch around Set-AzContext
+        $functionDef | Should -Match 'try\s*\{[^}]*Set-AzContext'
+        $functionDef | Should -Match 'Failed to set Azure context for subscription'
+    }
+    
+    It "Should have error handling for context restoration" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for error handling around context restoration
+        $functionDef | Should -Match 'Failed to restore original Azure context'
+    }
+    
+    It "Should have error handling for Get-AzAdvisorRecommendation failures" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for error handling around Get-AzAdvisorRecommendation
+        $functionDef | Should -Match 'Failed to query Advisor recommendations'
+    }
+    
+    It "Should verify subscription context after setting it" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check that the function verifies the context was set correctly
+        $functionDef | Should -Match 'context\.Subscription\.Id'
+        $functionDef | Should -Match '\$subId'
+    }
+    
+    It "Should use continue statement to skip failed subscriptions" {
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+        
+        # Check for continue statements in error handling
+        $functionDef | Should -Match 'continue'
+    }
+}
+
 Describe "Get-AzRetirementMetadataItem" {
     It "Should have no parameters" {
         $cmd = Get-Command Get-AzRetirementMetadataItem
