@@ -169,9 +169,45 @@ Gets recommendations using the REST API method
                 
                 $recommendations = if ($SubscriptionId) {
                     # Query specific subscriptions
+                    # Store the current context to restore later
+                    $originalContext = Get-AzContext
+                    
                     foreach ($subId in $SubscriptionId) {
                         Write-Verbose "Querying subscription via Az.Advisor: $subId"
-                        Get-AzAdvisorRecommendation -Filter $filter | Where-Object $subcategoryFilter
+                        
+                        # Set context to the specific subscription
+                        try {
+                            $context = Set-AzContext -SubscriptionId $subId -ErrorAction Stop
+                            
+                            # Verify that the context was actually set to the intended subscription
+                            if (-not $context -or -not $context.Subscription -or $context.Subscription.Id -ne $subId) {
+                                Write-Warning "Azure context for subscription $($subId) could not be verified. Skipping recommendation query for this subscription."
+                                continue
+                            }
+                            
+                        }
+                        catch {
+                            Write-Warning "Failed to set Azure context for subscription $($subId): $_"
+                            continue
+                        }
+
+                        # Query Advisor recommendations for the current subscription
+                        try {
+                            Get-AzAdvisorRecommendation -Filter $filter | Where-Object $subcategoryFilter
+                        }
+                        catch {
+                            Write-Warning "Failed to query Advisor recommendations for subscription $($subId): $_"
+                        }
+                    }
+                    
+                    # Restore the original context
+                    if ($originalContext) {
+                        try {
+                            $null = Set-AzContext -Context $originalContext -ErrorAction Stop
+                        }
+                        catch {
+                            Write-Warning "Failed to restore original Azure context: $_"
+                        }
                     }
                 }
                 else {
