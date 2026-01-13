@@ -191,15 +191,37 @@ Gets recommendations using the REST API method
                     $extProps = $null
                     $retirementFeatureName = $null
                     $retirementDate = $null
-                    
+
                     if ($rec.ExtendedProperty) {
-                        try {
-                            $extProps = $rec.ExtendedProperty | ConvertFrom-Json
+                        # Reuse a previously-parsed ExtendedProperty if available to avoid redundant JSON parsing
+                        if ($rec.PSObject.Properties.Name -contains 'ExtendedPropertyObject') {
+                            $extProps = $rec.ExtendedPropertyObject
+                        }
+                        else {
+                            try {
+                                if ($rec.ExtendedProperty -is [string]) {
+                                    # ExtendedProperty is JSON text; parse it once
+                                    $extProps = $rec.ExtendedProperty | ConvertFrom-Json
+                                }
+                                elseif ($rec.ExtendedProperty -is [hashtable] -or $rec.ExtendedProperty -is [pscustomobject]) {
+                                    # ExtendedProperty is already an object; no need to parse
+                                    $extProps = $rec.ExtendedProperty
+                                }
+
+                                if ($extProps) {
+                                    # Cache the parsed object on the recommendation to prevent re-parsing
+                                    $rec | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
+                                }
+                            }
+                            catch {
+                                Write-Verbose "Failed to parse ExtendedProperty: $_"
+                                $extProps = $null
+                            }
+                        }
+
+                        if ($extProps) {
                             $retirementFeatureName = $extProps.retirementFeatureName
                             $retirementDate = $extProps.retirementDate
-                        }
-                        catch {
-                            Write-Verbose "Failed to parse ExtendedProperty: $_"
                         }
                     }
 
