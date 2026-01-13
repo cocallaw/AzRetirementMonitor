@@ -236,6 +236,162 @@ Describe "Export-AzRetirementReport" {
     }
 }
 
+Describe "Export-AzRetirementReport Transformation Logic" {
+    BeforeAll {
+        # Create a temporary directory for test outputs
+        $script:TestOutputDir = Join-Path ([System.IO.Path]::GetTempPath()) "AzRetirementMonitorTests_$([guid]::NewGuid())"
+        New-Item -Path $script:TestOutputDir -ItemType Directory -Force | Out-Null
+    }
+    
+    AfterAll {
+        # Clean up test output directory
+        if (Test-Path $script:TestOutputDir) {
+            Remove-Item -Path $script:TestOutputDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    
+    Context "When Problem equals Solution (Az.Advisor mode)" {
+        It "Should replace Solution with Description in CSV when Description exists" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestVM"
+                ResourceType = "Microsoft.Compute/virtualMachines"
+                Problem = "Generic retirement notice"
+                Solution = "Generic retirement notice"
+                Description = "Detailed upgrade instructions for this VM"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "High"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-advisor-mode.csv"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format CSV -Confirm:$false
+            
+            $result = Import-Csv -Path $outputPath
+            $result.Solution | Should -Be "Detailed upgrade instructions for this VM"
+        }
+        
+        It "Should replace Solution with Description in JSON when Description exists" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestStorage"
+                ResourceType = "Microsoft.Storage/storageAccounts"
+                Problem = "Service retiring"
+                Solution = "Service retiring"
+                Description = "Migrate to new storage account type"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Medium"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-advisor-mode.json"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format JSON -Confirm:$false
+            
+            $result = Get-Content -Path $outputPath -Raw | ConvertFrom-Json
+            $result.Solution | Should -Be "Migrate to new storage account type"
+        }
+        
+        It "Should replace Solution with Description in HTML when Description exists" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestDB"
+                ResourceType = "Microsoft.Sql/servers/databases"
+                Problem = "Upgrade required"
+                Solution = "Upgrade required"
+                Description = "Move to SQL Database v2"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Low"
+                ResourceLink = "https://portal.azure.com/resource"
+                LearnMoreLink = "https://learn.microsoft.com/azure"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-advisor-mode.html"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format HTML -Confirm:$false
+            
+            $htmlContent = Get-Content -Path $outputPath -Raw
+            $htmlContent | Should -Match "Move to SQL Database v2"
+        }
+    }
+    
+    Context "When Problem differs from Solution (API mode)" {
+        It "Should keep original Solution in CSV when Problem differs" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestApp"
+                ResourceType = "Microsoft.Web/sites"
+                Problem = "API version deprecated"
+                Solution = "Update to API version 2023-01-01"
+                Description = "Additional context"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "High"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-api-mode.csv"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format CSV -Confirm:$false
+            
+            $result = Import-Csv -Path $outputPath
+            $result.Solution | Should -Be "Update to API version 2023-01-01"
+        }
+        
+        It "Should keep original Solution in JSON when Problem differs" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestFunction"
+                ResourceType = "Microsoft.Web/sites/functions"
+                Problem = "Runtime version retiring"
+                Solution = "Upgrade to .NET 8"
+                Description = "Migration guide available"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Medium"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-api-mode.json"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format JSON -Confirm:$false
+            
+            $result = Get-Content -Path $outputPath -Raw | ConvertFrom-Json
+            $result.Solution | Should -Be "Upgrade to .NET 8"
+        }
+    }
+    
+    Context "Edge cases" {
+        It "Should keep Solution when Description is null even if Problem equals Solution" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestResource"
+                ResourceType = "Microsoft.Test/resources"
+                Problem = "Action required"
+                Solution = "Action required"
+                Description = $null
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Low"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-null-description.csv"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format CSV -Confirm:$false
+            
+            $result = Import-Csv -Path $outputPath
+            $result.Solution | Should -Be "Action required"
+        }
+        
+        It "Should keep Solution when Description is empty string even if Problem equals Solution" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestResource2"
+                ResourceType = "Microsoft.Test/resources"
+                Problem = "Update needed"
+                Solution = "Update needed"
+                Description = ""
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "Low"
+            }
+            
+            $outputPath = Join-Path $script:TestOutputDir "test-empty-description.csv"
+            $testRec | Export-AzRetirementReport -OutputPath $outputPath -Format CSV -Confirm:$false
+            
+            $result = Import-Csv -Path $outputPath
+            $result.Solution | Should -Be "Update needed"
+        }
+    }
+}
+
 Describe "Token Expiration Validation" {
     BeforeAll {
         # Helper function to create a test JWT token with specified expiration
