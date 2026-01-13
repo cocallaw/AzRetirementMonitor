@@ -204,7 +204,7 @@ Exports retirement recommendations to CSV, JSON, or HTML
                     <th>Resource Name</th>
                     <th>Resource Type</th>
                     <th>Problem</th>
-                    <th>Solution</th>
+                    <th>Description</th>
                     <th>Resource Group</th>
                     <th>Subscription ID</th>
                     <th>Resource Link</th>
