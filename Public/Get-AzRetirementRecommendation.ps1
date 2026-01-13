@@ -177,7 +177,14 @@ Gets recommendations using the REST API method
                         
                         # Set context to the specific subscription
                         try {
-                            $null = Set-AzContext -SubscriptionId $subId -ErrorAction Stop
+                            $context = Set-AzContext -SubscriptionId $subId -ErrorAction Stop
+                            
+                            # Verify that the context was actually set to the intended subscription
+                            if (-not $context -or -not $context.Subscription -or $context.Subscription.Id -ne $subId) {
+                                Write-Warning "Azure context for subscription $($subId) could not be verified. Skipping recommendation query for this subscription."
+                                continue
+                            }
+                            
                         }
                         catch {
                             Write-Warning "Failed to set Azure context for subscription $($subId): $_"
