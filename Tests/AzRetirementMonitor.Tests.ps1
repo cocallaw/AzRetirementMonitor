@@ -108,7 +108,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             }
             
             # Call Connect-AzRetirementMonitor with UseAzPowerShell
-            Connect-AzRetirementMonitor -UseAzPowerShell
+            Connect-AzRetirementMonitor -UsingAPI -UseAzPowerShell
             
             # Verify the token was set correctly in module scope
             $module = Get-Module AzRetirementMonitor
@@ -131,7 +131,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             }
             
             # Call Connect-AzRetirementMonitor with UseAzPowerShell
-            Connect-AzRetirementMonitor -UseAzPowerShell
+            Connect-AzRetirementMonitor -UsingAPI -UseAzPowerShell
             
             # Verify the token was set correctly in module scope
             $module = Get-Module AzRetirementMonitor
@@ -275,7 +275,7 @@ Describe "Token Expiration Validation" {
     }
     
     It "Get-AzRetirementRecommendation should throw when not authenticated" {
-        { Get-AzRetirementRecommendation -ErrorAction Stop } | Should -Throw "*Not authenticated*"
+        { Get-AzRetirementRecommendation -UseAPI -ErrorAction Stop } | Should -Throw "*Not authenticated*"
     }
     
     It "Get-AzRetirementMetadataItem should throw when token is expired" {
@@ -299,7 +299,7 @@ Describe "Token Expiration Validation" {
         $module = Get-Module AzRetirementMonitor
         & $module { param($token) $script:AccessToken = $token } $expiredToken
         
-        { Get-AzRetirementRecommendation -ErrorAction Stop } | Should -Throw "*expired*"
+        { Get-AzRetirementRecommendation -UseAPI -ErrorAction Stop } | Should -Throw "*expired*"
     }
     
     It "Should validate a token with future expiration as valid" {
