@@ -187,12 +187,35 @@ Gets recommendations using the REST API method
                 }
 
                 foreach ($rec in $recommendations) {
-                    $isRetirement =
-                        $rec.ShortDescriptionProblem -match
-                        'retire|deprecat|end of life|eol|sunset'
+                    # Parse extended properties for retirement information
+                    $extProps = $null
+                    $retirementFeatureName = $null
+                    $retirementDate = $null
+                    
+                    if ($rec.ExtendedProperty) {
+                        try {
+                            $extProps = $rec.ExtendedProperty | ConvertFrom-Json
+                            $retirementFeatureName = $extProps.retirementFeatureName
+                            $retirementDate = $extProps.retirementDate
+                        }
+                        catch {
+                            Write-Verbose "Failed to parse ExtendedProperty: $_"
+                        }
+                    }
 
-                    # Extract properties from the Az.Advisor recommendation object
-                    $resourceId = $rec.ResourceId
+                    # Check if this is a retirement recommendation
+                    # Look in both the text and the extended properties
+                    $isRetirement = $false
+                    if ($rec.ShortDescriptionProblem -match 'retire|deprecat|end of life|eol|sunset|migration') {
+                        $isRetirement = $true
+                    }
+                    elseif ($retirementFeatureName -or $retirementDate) {
+                        $isRetirement = $true
+                    }
+
+                    # Extract ResourceId from ResourceMetadataResourceId property
+                    $resourceId = $rec.ResourceMetadataResourceId
+                    
                     $resourceType = if ($resourceId) {
                         if ($resourceId -match '/providers/([^/]+/[^/]+)(?:/|$)') {
                             $matches[1]
@@ -230,15 +253,18 @@ Gets recommendations using the REST API method
                         $null
                     }
 
-                    # Parse extended properties for description
-                    $description = if ($rec.ExtendedProperty) {
-                        try {
-                            $extProps = $rec.ExtendedProperty | ConvertFrom-Json
-                            $extProps.displayName
+                    # Build description from extended properties
+                    # Prefer retirementFeatureName, fall back to displayName
+                    $description = if ($retirementFeatureName) {
+                        if ($retirementDate) {
+                            "$retirementFeatureName (Retirement Date: $retirementDate)"
                         }
-                        catch {
-                            $null
+                        else {
+                            $retirementFeatureName
                         }
+                    }
+                    elseif ($extProps -and $extProps.displayName) {
+                        $extProps.displayName
                     }
                     else {
                         $null
@@ -247,7 +273,7 @@ Gets recommendations using the REST API method
                     $allRecommendations.Add([PSCustomObject]@{
                         SubscriptionId   = $subscriptionId
                         ResourceId       = $resourceId
-                        ResourceName     = ($resourceId -split "/")[-1]
+                        ResourceName     = if ($resourceId) { ($resourceId -split "/")[-1] } else { "N/A" }
                         ResourceType     = $resourceType
                         ResourceGroup    = $resourceGroup
                         Category         = $rec.Category
