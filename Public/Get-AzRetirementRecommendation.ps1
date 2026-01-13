@@ -187,7 +187,12 @@ Gets recommendations using the REST API method
                     
                     # Restore the original context
                     if ($originalContext) {
-                        $null = Set-AzContext -Context $originalContext
+                        try {
+                            $null = Set-AzContext -Context $originalContext -ErrorAction Stop
+                        }
+                        catch {
+                            Write-Warning "Failed to restore original Azure context: $_"
+                        }
                     }
                 }
                 else {
