@@ -37,8 +37,8 @@ function Show-AzRetirementComparison {
         # Impact level comparison
         Write-Host "`nBy Impact Level:" -ForegroundColor Yellow
         foreach ($impact in @('High', 'Medium', 'Low')) {
-            $current = $CurrentSnapshot.ImpactCounts.$impact
-            $previous = $PreviousSnapshot.ImpactCounts.$impact
+            $current = if ($CurrentSnapshot.ImpactCounts.ContainsKey($impact)) { $CurrentSnapshot.ImpactCounts.$impact } else { 0 }
+            $previous = if ($PreviousSnapshot.ImpactCounts.ContainsKey($impact)) { $PreviousSnapshot.ImpactCounts.$impact } else { 0 }
             $change = $current - $previous
             $changeSymbol = if ($change -gt 0) { "+" } elseif ($change -lt 0) { "" } else { "" }
             $changeColor = if ($change -gt 0) { "Red" } elseif ($change -lt 0) { "Green" } else { "Gray" }
@@ -64,7 +64,11 @@ function Show-AzRetirementComparison {
             if ($newResources.Count -gt 0) {
                 Write-Host "  New Issues: $($newResources.Count)" -ForegroundColor Red
                 foreach ($resourceId in $newResources) {
-                    $resourceName = ($resourceId -split "/")[-1]
+                    if (-not [string]::IsNullOrWhiteSpace($resourceId) -and $resourceId.Contains("/")) {
+                        $resourceName = ($resourceId -split "/")[-1]
+                    } else {
+                        $resourceName = $resourceId
+                    }
                     Write-Host "    + $resourceName" -ForegroundColor Red
                 }
             }
@@ -72,7 +76,11 @@ function Show-AzRetirementComparison {
             if ($resolvedResources.Count -gt 0) {
                 Write-Host "  Resolved: $($resolvedResources.Count)" -ForegroundColor Green
                 foreach ($resourceId in $resolvedResources) {
-                    $resourceName = ($resourceId -split "/")[-1]
+                    if (-not [string]::IsNullOrWhiteSpace($resourceId) -and $resourceId.Contains("/")) {
+                        $resourceName = ($resourceId -split "/")[-1]
+                    } else {
+                        $resourceName = $resourceId
+                    }
                     Write-Host "    - $resourceName" -ForegroundColor Green
                 }
             }

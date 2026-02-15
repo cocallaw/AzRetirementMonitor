@@ -22,8 +22,8 @@ function New-AzRetirementSnapshot {
     # Count by resource type
     $resourceTypeCounts = @{}
 
-    # Track resource IDs
-    $resourceIds = @()
+    # Track resource IDs - using List for better performance
+    $resourceIds = [System.Collections.Generic.List[string]]::new()
 
     foreach ($rec in $Recommendations) {
         # Count by impact
@@ -32,7 +32,8 @@ function New-AzRetirementSnapshot {
                 $impactCounts[$rec.Impact]++
             }
             else {
-                Write-Warning "New-AzRetirementSnapshot: Unexpected Impact value '$($rec.Impact)' encountered. This value will be ignored in impact counts."
+                Write-Warning "New-AzRetirementSnapshot: Unexpected Impact value '$($rec.Impact)' encountered. This value will be tracked but may not display correctly."
+                $impactCounts[$rec.Impact] = 1
             }
         }
 
@@ -46,7 +47,7 @@ function New-AzRetirementSnapshot {
 
         # Track resource IDs
         if ($rec.ResourceId) {
-            $resourceIds += $rec.ResourceId
+            $resourceIds.Add($rec.ResourceId)
         }
     }
 
@@ -55,6 +56,6 @@ function New-AzRetirementSnapshot {
         TotalCount         = $Recommendations.Count
         ImpactCounts       = $impactCounts
         ResourceTypeCounts = $resourceTypeCounts
-        ResourceIds        = $resourceIds
+        ResourceIds        = $resourceIds.ToArray()
     }
 }
