@@ -28,7 +28,12 @@ function New-AzRetirementSnapshot {
     foreach ($rec in $Recommendations) {
         # Count by impact
         if ($rec.Impact) {
-            $impactCounts[$rec.Impact]++
+            if ($impactCounts.ContainsKey($rec.Impact)) {
+                $impactCounts[$rec.Impact]++
+            }
+            else {
+                Write-Warning "New-AzRetirementSnapshot: Unexpected Impact value '$($rec.Impact)' encountered. This value will be ignored in impact counts."
+            }
         }
 
         # Count by resource type
