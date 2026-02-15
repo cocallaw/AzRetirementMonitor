@@ -173,12 +173,66 @@ Get-AzRetirementRecommendation -SubscriptionId "sub-id-1", "sub-id-2"
 
 # Use REST API instead (requires Connect-AzRetirementMonitor -UsingAPI first)
 Get-AzRetirementRecommendation -UseAPI
+
+# Enable change tracking to monitor progress over time
+Get-AzRetirementRecommendation -EnableChangeTracking
+
+# Enable change tracking with custom history file path
+Get-AzRetirementRecommendation -EnableChangeTracking -ChangeTrackingPath "C:\Reports\retirement-history.json"
 ```
 
 **Parameters:**
 
 - `SubscriptionId` - One or more subscription IDs (defaults to all subscriptions)
 - `UseAPI` - Use REST API instead of Az.Advisor module
+- `EnableChangeTracking` - Enable change tracking to monitor progress over time
+- `ChangeTrackingPath` - Path to the JSON file for storing change tracking history (defaults to `AzRetirementMonitor-History.json` in current directory)
+
+#### Change Tracking
+
+The change tracking feature helps you monitor your progress in addressing retirement recommendations over time. When enabled:
+
+- **Stores snapshots** of each run in a JSON file
+- **Displays comparison** with the previous run in the console
+- **Tracks changes** in total count, impact levels, and individual resources
+- **Highlights progress** by showing resolved and new issues
+
+**Example output:**
+
+```
+=== Azure Retirement Monitor - Change Tracking ===
+Current Run: 2024-01-15T10:30:00Z
+Previous Run: 2024-01-10T09:00:00Z
+
+Total Recommendations: 15 (-3)
+
+By Impact Level:
+  High : 5 (-1)
+  Medium : 7 (-2)
+  Low : 3 (no change)
+
+Resource Changes:
+  New Issues: 2
+    + new-vm-01
+    + new-storage-01
+  Resolved: 5
+    - old-vm-01
+    - old-storage-01
+    - legacy-app-01
+    - test-db-01
+    - deprecated-api-01
+
+=================================================
+```
+
+The history file contains minimal data needed for tracking:
+- Timestamp of each run
+- Total count of recommendations
+- Counts by impact level (High, Medium, Low)
+- Counts by resource type
+- List of resource IDs (to track which issues are resolved or new)
+
+This allows you to easily see your progress in cleaning up retirement issues over time without storing full recommendation details.
 
 ### Connect-AzRetirementMonitor
 
@@ -319,6 +373,47 @@ $recommendations | Format-Table ResourceName, Impact, Problem, Solution -AutoSiz
 # 5. Export for team review
 $recommendations | Export-AzRetirementReport -OutputPath "retirement-report.html" -Format HTML
 ```
+
+### Change Tracking Workflow
+
+Use change tracking to monitor your progress over time:
+
+```powershell
+# 1. Authenticate to Azure
+Connect-AzAccount
+
+# 2. First run - establish baseline with change tracking
+Get-AzRetirementRecommendation -EnableChangeTracking
+
+# Output shows:
+# === Azure Retirement Monitor - Change Tracking ===
+# This is the first run with change tracking enabled.
+# Total Recommendations: 25
+# ...
+
+# 3. Address some issues in your Azure environment
+# (migrate resources, update configurations, etc.)
+
+# 4. Run again to see progress
+Get-AzRetirementRecommendation -EnableChangeTracking
+
+# Output shows:
+# === Azure Retirement Monitor - Change Tracking ===
+# Total Recommendations: 18 (-7)
+# By Impact Level:
+#   High : 5 (-3)
+#   Medium : 10 (-4)
+# Resource Changes:
+#   Resolved: 7
+#     - old-vm-01
+#     - legacy-storage-01
+#     ...
+
+# 5. Track over time with custom path
+Get-AzRetirementRecommendation -EnableChangeTracking -ChangeTrackingPath "C:\AzureReports\retirement-tracking.json"
+```
+
+The history file is automatically updated with each run, allowing you to track progress without managing multiple files.
 
 ### Alternative Workflow (API Method)
 

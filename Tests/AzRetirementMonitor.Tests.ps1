@@ -680,3 +680,126 @@ Describe "Token Audience Validation" {
         $testResult | Should -Be $false
     }
 }
+
+Describe "Change Tracking Feature" {
+    BeforeAll {
+        # Create a temporary directory for test outputs
+        $script:TestTrackingDir = Join-Path ([System.IO.Path]::GetTempPath()) "AzRetirementChangeTracking_$([guid]::NewGuid())"
+        New-Item -Path $script:TestTrackingDir -ItemType Directory -Force | Out-Null
+    }
+    
+    AfterAll {
+        # Clean up test output directory
+        if (Test-Path $script:TestTrackingDir) {
+            Remove-Item -Path $script:TestTrackingDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Context "Parameter Validation" {
+        It "Should have EnableChangeTracking parameter" {
+            $cmd = Get-Command Get-AzRetirementRecommendation
+            $cmd.Parameters.ContainsKey('EnableChangeTracking') | Should -Be $true
+        }
+        
+        It "Should have ChangeTrackingPath parameter" {
+            $cmd = Get-Command Get-AzRetirementRecommendation
+            $cmd.Parameters.ContainsKey('ChangeTrackingPath') | Should -Be $true
+        }
+        
+        It "ChangeTrackingPath should have a default value" {
+            $cmd = Get-Command Get-AzRetirementRecommendation
+            $param = $cmd.Parameters['ChangeTrackingPath']
+            $param.Attributes.TypeId.Name | Should -Contain 'ParameterAttribute'
+        }
+    }
+
+    Context "Helper Functions" {
+        It "New-AzRetirementSnapshot should create a snapshot" {
+            $testRecs = @(
+                [PSCustomObject]@{
+                    ResourceId   = "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Compute/virtualMachines/vm1"
+                    ResourceType = "Microsoft.Compute/virtualMachines"
+                    Impact       = "High"
+                },
+                [PSCustomObject]@{
+                    ResourceId   = "/subscriptions/sub1/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/sa1"
+                    ResourceType = "Microsoft.Storage/storageAccounts"
+                    Impact       = "Medium"
+                }
+            )
+            
+            $module = Get-Module AzRetirementMonitor
+            $snapshot = & $module { param($recs) New-AzRetirementSnapshot -Recommendations $recs } $testRecs
+            
+            $snapshot.TotalCount | Should -Be 2
+            $snapshot.ImpactCounts.High | Should -Be 1
+            $snapshot.ImpactCounts.Medium | Should -Be 1
+            $snapshot.ResourceIds.Count | Should -Be 2
+        }
+        
+        It "New-AzRetirementSnapshot should handle empty recommendations" {
+            $module = Get-Module AzRetirementMonitor
+            $snapshot = & $module { New-AzRetirementSnapshot -Recommendations @() }
+            
+            $snapshot.TotalCount | Should -Be 0
+            $snapshot.ImpactCounts.High | Should -Be 0
+        }
+        
+        It "Save-AzRetirementHistory should create a JSON file" {
+            $testPath = Join-Path $script:TestTrackingDir "test-history.json"
+            $testHistory = [PSCustomObject]@{
+                Created   = (Get-Date).ToString('o')
+                Snapshots = @(
+                    [PSCustomObject]@{
+                        Timestamp   = (Get-Date).ToString('o')
+                        TotalCount  = 5
+                        ImpactCounts = @{High = 2; Medium = 2; Low = 1}
+                        ResourceTypeCounts = @{}
+                        ResourceIds = @()
+                    }
+                )
+            }
+            
+            $module = Get-Module AzRetirementMonitor
+            & $module { param($p, $h) Save-AzRetirementHistory -Path $p -History $h } $testPath $testHistory
+            
+            Test-Path $testPath | Should -Be $true
+            
+            $saved = Get-Content $testPath -Raw | ConvertFrom-Json
+            $saved.Snapshots[0].TotalCount | Should -Be 5
+        }
+        
+        It "Get-AzRetirementHistory should load existing history" {
+            $testPath = Join-Path $script:TestTrackingDir "test-load-history.json"
+            $testHistory = [PSCustomObject]@{
+                Created   = (Get-Date).ToString('o')
+                Snapshots = @(
+                    [PSCustomObject]@{
+                        Timestamp   = (Get-Date).ToString('o')
+                        TotalCount  = 3
+                        ImpactCounts = @{High = 1; Medium = 1; Low = 1}
+                        ResourceTypeCounts = @{}
+                        ResourceIds = @()
+                    }
+                )
+            }
+            
+            $testHistory | ConvertTo-Json -Depth 10 | Set-Content -Path $testPath
+            
+            $module = Get-Module AzRetirementMonitor
+            $loaded = & $module { param($p) Get-AzRetirementHistory -Path $p } $testPath
+            
+            $loaded | Should -Not -BeNull
+            $loaded.Snapshots[0].TotalCount | Should -Be 3
+        }
+        
+        It "Get-AzRetirementHistory should return null for non-existent file" {
+            $testPath = Join-Path $script:TestTrackingDir "non-existent.json"
+            
+            $module = Get-Module AzRetirementMonitor
+            $loaded = & $module { param($p) Get-AzRetirementHistory -Path $p } $testPath
+            
+            $loaded | Should -BeNull
+        }
+    }
+}
