@@ -13,7 +13,7 @@ function Get-AzRetirementHistory {
 
     if (Test-Path -Path $Path) {
         try {
-            $content = Get-Content -Path $Path -Raw | ConvertFrom-Json
+            $content = Get-Content -Path $Path -Raw -Encoding utf8 | ConvertFrom-Json
             Write-Verbose "Loaded history from: $Path"
             return $content
         }
