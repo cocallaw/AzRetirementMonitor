@@ -52,8 +52,8 @@ function Show-AzRetirementComparison {
         }
 
         # Resource changes
-        $currentResourceIds = $CurrentSnapshot.ResourceIds
-        $previousResourceIds = $PreviousSnapshot.ResourceIds
+        $currentResourceIds = @($CurrentSnapshot.ResourceIds)
+        $previousResourceIds = @($PreviousSnapshot.ResourceIds)
         
         $newResources = $currentResourceIds | Where-Object { $_ -notin $previousResourceIds }
         $resolvedResources = $previousResourceIds | Where-Object { $_ -notin $currentResourceIds }
