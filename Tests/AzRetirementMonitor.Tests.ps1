@@ -681,6 +681,135 @@ Describe "Token Audience Validation" {
     }
 }
 
+Describe "Show-AzRetirementComparison Function Coverage" {
+    BeforeAll {
+        $module = Get-Module AzRetirementMonitor
+    }
+    
+    Context "First run scenario (no previous snapshot)" {
+        It "Should handle first run without errors" {
+            $currentSnapshot = [PSCustomObject]@{
+                Timestamp = (Get-Date).ToString('o')
+                TotalCount = 5
+                ImpactCounts = @{High = 2; Medium = 2; Low = 1}
+                ResourceIds = @()
+            }
+            
+            { & $module { param($c, $p) Show-AzRetirementComparison -CurrentSnapshot $c -PreviousSnapshot $p } $currentSnapshot $null } | Should -Not -Throw
+        }
+    }
+    
+    Context "Comparison with previous snapshot" {
+        It "Should handle no changes between runs" {
+            $snapshot1 = [PSCustomObject]@{
+                Timestamp = (Get-Date).AddDays(-1).ToString('o')
+                TotalCount = 3
+                ImpactCounts = @{High = 1; Medium = 1; Low = 1}
+                ResourceIds = @('/sub/rg/vm1', '/sub/rg/vm2', '/sub/rg/vm3')
+            }
+            
+            $snapshot2 = [PSCustomObject]@{
+                Timestamp = (Get-Date).ToString('o')
+                TotalCount = 3
+                ImpactCounts = @{High = 1; Medium = 1; Low = 1}
+                ResourceIds = @('/sub/rg/vm1', '/sub/rg/vm2', '/sub/rg/vm3')
+            }
+            
+            { & $module { param($c, $p) Show-AzRetirementComparison -CurrentSnapshot $c -PreviousSnapshot $p } $snapshot2 $snapshot1 } | Should -Not -Throw
+        }
+        
+        It "Should handle changes in counts" {
+            $snapshot1 = [PSCustomObject]@{
+                Timestamp = (Get-Date).AddDays(-1).ToString('o')
+                TotalCount = 5
+                ImpactCounts = @{High = 2; Medium = 2; Low = 1}
+                ResourceIds = @()
+            }
+            
+            $snapshot2 = [PSCustomObject]@{
+                Timestamp = (Get-Date).ToString('o')
+                TotalCount = 3
+                ImpactCounts = @{High = 1; Medium = 1; Low = 1}
+                ResourceIds = @()
+            }
+            
+            { & $module { param($c, $p) Show-AzRetirementComparison -CurrentSnapshot $c -PreviousSnapshot $p } $snapshot2 $snapshot1 } | Should -Not -Throw
+        }
+        
+        It "Should handle new resources" {
+            $snapshot1 = [PSCustomObject]@{
+                Timestamp = (Get-Date).AddDays(-1).ToString('o')
+                TotalCount = 2
+                ImpactCounts = @{High = 1; Medium = 1; Low = 0}
+                ResourceIds = @('/sub/rg/vm1', '/sub/rg/vm2')
+            }
+            
+            $snapshot2 = [PSCustomObject]@{
+                Timestamp = (Get-Date).ToString('o')
+                TotalCount = 3
+                ImpactCounts = @{High = 2; Medium = 1; Low = 0}
+                ResourceIds = @('/sub/rg/vm1', '/sub/rg/vm2', '/sub/rg/vm3')
+            }
+            
+            { & $module { param($c, $p) Show-AzRetirementComparison -CurrentSnapshot $c -PreviousSnapshot $p } $snapshot2 $snapshot1 } | Should -Not -Throw
+        }
+        
+        It "Should handle resolved resources" {
+            $snapshot1 = [PSCustomObject]@{
+                Timestamp = (Get-Date).AddDays(-1).ToString('o')
+                TotalCount = 3
+                ImpactCounts = @{High = 2; Medium = 1; Low = 0}
+                ResourceIds = @('/sub/rg/vm1', '/sub/rg/vm2', '/sub/rg/vm3')
+            }
+            
+            $snapshot2 = [PSCustomObject]@{
+                Timestamp = (Get-Date).ToString('o')
+                TotalCount = 1
+                ImpactCounts = @{High = 1; Medium = 0; Low = 0}
+                ResourceIds = @('/sub/rg/vm1')
+            }
+            
+            { & $module { param($c, $p) Show-AzRetirementComparison -CurrentSnapshot $c -PreviousSnapshot $p } $snapshot2 $snapshot1 } | Should -Not -Throw
+        }
+        
+        It "Should handle missing impact keys in previous snapshot" {
+            $snapshot1 = [PSCustomObject]@{
+                Timestamp = (Get-Date).AddDays(-1).ToString('o')
+                TotalCount = 2
+                ImpactCounts = @{High = 2}  # Missing Medium and Low
+                ResourceIds = @()
+            }
+            
+            $snapshot2 = [PSCustomObject]@{
+                Timestamp = (Get-Date).ToString('o')
+                TotalCount = 3
+                ImpactCounts = @{High = 1; Medium = 1; Low = 1}
+                ResourceIds = @()
+            }
+            
+            { & $module { param($c, $p) Show-AzRetirementComparison -CurrentSnapshot $c -PreviousSnapshot $p } $snapshot2 $snapshot1 } | Should -Not -Throw
+        }
+        
+        It "Should handle edge case resource IDs" {
+            $snapshot1 = [PSCustomObject]@{
+                Timestamp = (Get-Date).AddDays(-1).ToString('o')
+                TotalCount = 3
+                ImpactCounts = @{High = 1; Medium = 1; Low = 1}
+                ResourceIds = @('/sub/rg/vm1', 'simple-name', '')
+            }
+            
+            $snapshot2 = [PSCustomObject]@{
+                Timestamp = (Get-Date).ToString('o')
+                TotalCount = 2
+                ImpactCounts = @{High = 1; Medium = 1; Low = 0}
+                ResourceIds = @('/sub/rg/vm1', 'another-simple')
+            }
+            
+            { & $module { param($c, $p) Show-AzRetirementComparison -CurrentSnapshot $c -PreviousSnapshot $p } $snapshot2 $snapshot1 } | Should -Not -Throw
+        }
+    }
+}
+
 Describe "Change Tracking Feature" {
     BeforeAll {
         # Create a temporary directory for test outputs
