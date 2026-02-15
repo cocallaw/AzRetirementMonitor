@@ -18,6 +18,10 @@ The API method requires:
 One or more subscription IDs to query. Defaults to all subscriptions.
 .PARAMETER UseAPI
 Use the Azure REST API instead of Az.Advisor PowerShell module. Requires Connect-AzRetirementMonitor first.
+.PARAMETER EnableChangeTracking
+Enable change tracking to monitor progress over time. Saves snapshots to a JSON file and displays comparison with previous run.
+.PARAMETER ChangeTrackingPath
+Path to the JSON file for storing change tracking history. Defaults to AzRetirementMonitor-History.json in the current directory.
 .EXAMPLE
 Get-AzRetirementRecommendation
 Gets all retirement recommendations using Az.Advisor module (default)
@@ -27,6 +31,12 @@ Gets recommendations for a specific subscription using Az.Advisor module
 .EXAMPLE
 Get-AzRetirementRecommendation -UseAPI
 Gets recommendations using the REST API method
+.EXAMPLE
+Get-AzRetirementRecommendation -EnableChangeTracking
+Gets recommendations and tracks changes over time, saving to default history file
+.EXAMPLE
+Get-AzRetirementRecommendation -EnableChangeTracking -ChangeTrackingPath "C:\Reports\retirement-history.json"
+Gets recommendations and tracks changes using a custom history file path
 #>
     [CmdletBinding()]
     param(
@@ -34,7 +44,13 @@ Gets recommendations using the REST API method
         [string[]]$SubscriptionId,
 
         [Parameter()]
-        [switch]$UseAPI
+        [switch]$UseAPI,
+
+        [Parameter()]
+        [switch]$EnableChangeTracking,
+
+        [Parameter()]
+        [string]$ChangeTrackingPath = (Join-Path $PWD "AzRetirementMonitor-History.json")
     )
 
     begin {
@@ -348,6 +364,42 @@ Gets recommendations using the REST API method
     }
 
     end {
-        return $allRecommendations.ToArray()
+        $recommendations = $allRecommendations.ToArray()
+
+        # Handle change tracking if enabled
+        if ($EnableChangeTracking) {
+            # Load previous history
+            $history = Get-AzRetirementHistory -Path $ChangeTrackingPath
+
+            # Create snapshot of current run
+            $currentSnapshot = New-AzRetirementSnapshot -Recommendations $recommendations
+
+            # Get the previous snapshot if history exists
+            $previousSnapshot = if ($history -and $history.Snapshots -and $history.Snapshots.Count -gt 0) {
+                $history.Snapshots[-1]
+            } else {
+                $null
+            }
+
+            # Display comparison
+            Show-AzRetirementComparison -CurrentSnapshot $currentSnapshot -PreviousSnapshot $previousSnapshot
+
+            # Update history with new snapshot
+            if ($history) {
+                # Add new snapshot to existing history
+                $history.Snapshots += $currentSnapshot
+            } else {
+                # Create new history object
+                $history = [PSCustomObject]@{
+                    Created   = (Get-Date).ToString('o')
+                    Snapshots = @($currentSnapshot)
+                }
+            }
+
+            # Save updated history
+            Save-AzRetirementHistory -Path $ChangeTrackingPath -History $history
+        }
+
+        return $recommendations
     }
 }
