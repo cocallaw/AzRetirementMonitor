@@ -17,7 +17,7 @@ function Save-AzRetirementHistory {
     )
 
     try {
-        $History | ConvertTo-Json -Depth 10 | Set-Content -Path $Path -Force
+        $History | ConvertTo-Json -Depth 10 | Set-Content -Path $Path -Encoding utf8 -Force
         Write-Verbose "Saved history to: $Path"
     }
     catch {
