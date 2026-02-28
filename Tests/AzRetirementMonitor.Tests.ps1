@@ -930,5 +930,62 @@ Describe "Change Tracking Feature" {
             
             $loaded | Should -BeNull
         }
+        
+        It "Show-AzRetirementComparison should handle ImpactCounts as PSCustomObject after JSON deserialization" {
+            # Regression test: ImpactCounts loaded from JSON becomes PSCustomObject, not hashtable.
+            # The comparison should not throw or return wrong values.
+            $testPath = Join-Path $script:TestTrackingDir "roundtrip-impactcounts-test.json"
+            $module = Get-Module AzRetirementMonitor
+            
+            # Build a snapshot and persist it
+            $testRecs = @(
+                [PSCustomObject]@{ ResourceId = '/sub/rg/vm1'; ResourceType = 'Microsoft.Compute/virtualMachines'; Impact = 'High' },
+                [PSCustomObject]@{ ResourceId = '/sub/rg/sa1'; ResourceType = 'Microsoft.Storage/storageAccounts'; Impact = 'Medium' }
+            )
+            $snapshot = & $module { param($r) New-AzRetirementSnapshot -Recommendations $r } $testRecs
+            $historyToSave = [PSCustomObject]@{
+                Created   = (Get-Date).ToString('o')
+                Snapshots = @($snapshot)
+            }
+            & $module { param($p, $h) Save-AzRetirementHistory -Path $p -History $h } $testPath $historyToSave
+            
+            # Reload; ImpactCounts is now PSCustomObject, not hashtable
+            $loadedHistory = & $module { param($p) Get-AzRetirementHistory -Path $p } $testPath
+            $deserializedSnapshot = @($loadedHistory.Snapshots)[0]
+            
+            # Create a fresh current snapshot (ImpactCounts is a hashtable)
+            $newSnapshot = & $module { New-AzRetirementSnapshot -Recommendations @() }
+            
+            # Must not throw even though PreviousSnapshot.ImpactCounts is a PSCustomObject
+            { & $module { param($c, $p) Show-AzRetirementComparison -CurrentSnapshot $c -PreviousSnapshot $p } $newSnapshot $deserializedSnapshot } | Should -Not -Throw
+        }
+        
+        It "Should correctly read previous snapshot from single-snapshot history file" {
+            # Regression test: PS 5.1 ConvertFrom-Json may deserialise a single-element JSON array
+            # as a bare object rather than an array. @() normalisation must handle this.
+            $testPath = Join-Path $script:TestTrackingDir "single-snapshot-roundtrip-test.json"
+            $module = Get-Module AzRetirementMonitor
+            
+            $testRecs = @(
+                [PSCustomObject]@{ ResourceId = '/sub/rg/vm1'; ResourceType = 'Microsoft.Compute/virtualMachines'; Impact = 'High' }
+            )
+            $snapshot = & $module { param($r) New-AzRetirementSnapshot -Recommendations $r } $testRecs
+            $historyToSave = [PSCustomObject]@{
+                Created   = (Get-Date).ToString('o')
+                Snapshots = @($snapshot)
+            }
+            & $module { param($p, $h) Save-AzRetirementHistory -Path $p -History $h } $testPath $historyToSave
+            
+            # Reload history
+            $loadedHistory = & $module { param($p) Get-AzRetirementHistory -Path $p } $testPath
+            
+            # @() normalisation must yield exactly one snapshot
+            $snapshotsArray = @($loadedHistory.Snapshots)
+            $snapshotsArray.Count | Should -Be 1
+            $snapshotsArray[0].TotalCount | Should -Be 1
+            
+            # Accessing the last element must work correctly
+            $snapshotsArray[-1].TotalCount | Should -Be 1
+        }
     }
 }
