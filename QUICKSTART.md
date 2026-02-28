@@ -83,6 +83,28 @@ Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.j
 Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.html" -Format HTML
 ```
 
+## Track Changes Over Time
+
+Use change tracking to monitor your progress in resolving retirement recommendations:
+
+```powershell
+# First run — establishes the baseline
+Get-AzRetirementRecommendation -EnableChangeTracking
+
+# Subsequent runs — shows what has been resolved and what is new
+Get-AzRetirementRecommendation -EnableChangeTracking
+
+# Use a custom history file path
+Get-AzRetirementRecommendation -EnableChangeTracking -ChangeTrackingPath "C:\Reports\retirement-history.json"
+```
+
+The history file is updated automatically on each run. The console output shows:
+
+- Total recommendation count with delta from the previous run
+- Per-impact-level counts (High / Medium / Low) with deltas
+- Newly appeared resource IDs
+- Resource IDs that have been resolved since the last run
+
 ## Troubleshooting
 
 ### "Az.Advisor module not available or not connected"
