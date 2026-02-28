@@ -37,8 +37,18 @@ function Show-AzRetirementComparison {
         # Impact level comparison
         Write-Host "`nBy Impact Level:" -ForegroundColor Yellow
         foreach ($impact in @('High', 'Medium', 'Low')) {
-            $current = if ($CurrentSnapshot.ImpactCounts.ContainsKey($impact)) { $CurrentSnapshot.ImpactCounts.$impact } else { 0 }
-            $previous = if ($PreviousSnapshot.ImpactCounts.ContainsKey($impact)) { $PreviousSnapshot.ImpactCounts.$impact } else { 0 }
+            # ImpactCounts may be a hashtable (freshly created) or PSCustomObject (loaded from JSON).
+            # Use -is [hashtable] to select the correct access method for both cases.
+            $current = if ($CurrentSnapshot.ImpactCounts -is [hashtable]) {
+                if ($CurrentSnapshot.ImpactCounts.ContainsKey($impact)) { $CurrentSnapshot.ImpactCounts[$impact] } else { 0 }
+            } else {
+                $val = $CurrentSnapshot.ImpactCounts.$impact; if ($null -ne $val) { [int]$val } else { 0 }
+            }
+            $previous = if ($PreviousSnapshot.ImpactCounts -is [hashtable]) {
+                if ($PreviousSnapshot.ImpactCounts.ContainsKey($impact)) { $PreviousSnapshot.ImpactCounts[$impact] } else { 0 }
+            } else {
+                $val = $PreviousSnapshot.ImpactCounts.$impact; if ($null -ne $val) { [int]$val } else { 0 }
+            }
             $change = $current - $previous
             $changeSymbol = if ($change -gt 0) { "+" } elseif ($change -lt 0) { "" } else { "" }
             $changeColor = if ($change -gt 0) { "Red" } elseif ($change -lt 0) { "Green" } else { "Gray" }

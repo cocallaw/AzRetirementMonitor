@@ -374,9 +374,12 @@ Gets recommendations and tracks changes using a custom history file path
             # Create snapshot of current run
             $currentSnapshot = New-AzRetirementSnapshot -Recommendations $recommendations
 
-            # Get the previous snapshot if history exists
-            $previousSnapshot = if ($history -and $history.Snapshots -and $history.Snapshots.Count -gt 0) {
-                $history.Snapshots[-1]
+            # Get the previous snapshot if history exists.
+            # Wrap Snapshots in @() to normalise PS 5.1 behaviour where ConvertFrom-Json
+            # returns a bare PSCustomObject instead of a single-element array.
+            $previousSnapshot = if ($history -and $history.Snapshots) {
+                $snapshotsArray = @($history.Snapshots)
+                if ($snapshotsArray.Count -gt 0) { $snapshotsArray[-1] } else { $null }
             } else {
                 $null
             }
@@ -389,7 +392,9 @@ Gets recommendations and tracks changes using a custom history file path
                 # Add new snapshot to existing history without repeatedly reallocating arrays
                 $snapshotsList = [System.Collections.Generic.List[object]]::new()
                 if ($history.Snapshots) {
-                    $snapshotsList.AddRange([object[]]$history.Snapshots)
+                    # Wrap in @() so a single snapshot deserialised as a bare PSCustomObject
+                    # by ConvertFrom-Json (PS 5.1) is still passed as an array to AddRange.
+                    $snapshotsList.AddRange([object[]]@($history.Snapshots))
                 }
                 $snapshotsList.Add($currentSnapshot)
                 $history.Snapshots = $snapshotsList.ToArray()
