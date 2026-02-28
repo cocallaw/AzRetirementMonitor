@@ -5,6 +5,9 @@ function New-AzRetirementSnapshot {
     .PARAMETER Recommendations
     Array of recommendation objects
     #>
+    # SuppressMessageAttribute: this private function only constructs an in-memory object;
+    # no system state is changed, so ShouldProcess/ShouldContinue are not applicable.
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
