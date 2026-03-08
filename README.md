@@ -186,7 +186,7 @@ Get-AzRetirementRecommendation -EnableChangeTracking -ChangeTrackingPath "C:\Rep
 - `SubscriptionId` - One or more subscription IDs (defaults to all subscriptions)
 - `UseAPI` - Use REST API instead of Az.Advisor module
 - `EnableChangeTracking` - Enable change tracking to monitor progress over time
-- `ChangeTrackingPath` - Path to the JSON file for storing change tracking history (defaults to `AzRetirementMonitor-History.json` in user's home directory)
+- `ChangeTrackingPath` - Path to the JSON file for storing change tracking history (defaults to `AzRetirementMonitor-History.json` in the current working directory)
 
 #### Change Tracking
 

@@ -21,7 +21,7 @@ Use the Azure REST API instead of Az.Advisor PowerShell module. Requires Connect
 .PARAMETER EnableChangeTracking
 Enable change tracking to monitor progress over time. Saves snapshots to a JSON file and displays comparison with previous run.
 .PARAMETER ChangeTrackingPath
-Path to the JSON file for storing change tracking history. Defaults to AzRetirementMonitor-History.json in the user's home directory.
+Path to the JSON file for storing change tracking history. Defaults to AzRetirementMonitor-History.json in the current working directory.
 .EXAMPLE
 Get-AzRetirementRecommendation
 Gets all retirement recommendations using Az.Advisor module (default)
@@ -50,11 +50,17 @@ Gets recommendations and tracks changes using a custom history file path
         [switch]$EnableChangeTracking,
 
         [Parameter()]
-        [string]$ChangeTrackingPath = (Join-Path $HOME "AzRetirementMonitor-History.json")
+        [string]$ChangeTrackingPath
     )
 
     begin {
         $allRecommendations = [System.Collections.Generic.List[object]]::new()
+
+        # Resolve ChangeTrackingPath at invocation time so it always reflects the
+        # current working directory when the command is run, not when the module loaded.
+        if (-not $ChangeTrackingPath) {
+            $ChangeTrackingPath = Join-Path (Get-Location).Path 'AzRetirementMonitor-History.json'
+        }
 
         if ($UseAPI) {
             # API mode - requires authentication via Connect-AzRetirementMonitor
