@@ -13,9 +13,18 @@ Azure services evolve constantly, with features, APIs, and entire services being
 
 **AzRetirementMonitor** helps you proactively identify Azure resources affected by upcoming retirements by querying Azure Advisor for service upgrade and retirement recommendations across all your subscriptions. This gives you time to plan migrations and upgrades before services are discontinued.
 
+## 📊 Version 3.0.0 - Change Tracking
+
+**Version 3.0.0 adds change tracking to monitor your progress over time:**
+
+- **New parameter**: `-EnableChangeTracking` on `Get-AzRetirementRecommendation` saves a snapshot each run and compares it to the previous one
+- **New parameter**: `-ChangeTrackingPath` to specify a custom history file location (defaults to `AzRetirementMonitor-History.json` in the current directory)
+- Console output shows total count deltas, per-impact-level changes, and new/resolved resource IDs
+- Full PowerShell 5.1 compatibility for snapshot JSON deserialization
+
 ## 🚀 Version 2.0.0 - Breaking Changes
 
-**Version 2.0.0 introduces a major change in how the module works:**
+**Version 2.0.0 introduced a major change in how the module works:**
 
 - **Default behavior**: Now uses Az.Advisor PowerShell module (full parity with Azure Advisor)
 - **API mode**: Available via `-UseAPI` switch on Get-AzRetirementRecommendation

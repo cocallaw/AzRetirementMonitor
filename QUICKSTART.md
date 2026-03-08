@@ -1,4 +1,4 @@
-# AzRetirementMonitor v2.0 - Quick Start Guide
+# AzRetirementMonitor v3.0 - Quick Start Guide
 
 **Compatible with PowerShell 5.1+ (Desktop and Core)**
 
@@ -36,6 +36,18 @@ Get-AzRetirementRecommendation -UseAPI | Export-AzRetirementReport -OutputPath "
 # Step 5: Disconnect when done
 Disconnect-AzRetirementMonitor
 ```
+
+## What's New in v3.0?
+
+### 📊 Change Tracking
+
+Track your progress in resolving retirement recommendations over time:
+
+- **`-EnableChangeTracking`** — saves a snapshot on each run and compares it to the previous one
+- **`-ChangeTrackingPath`** — use a custom history file path instead of the default
+- Console output shows total count deltas, impact-level changes, and new/resolved resources
+
+See the **Track Changes Over Time** section above for usage examples.
 
 ## What Changed in v2.0?
 
