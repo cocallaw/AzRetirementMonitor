@@ -1,11 +1,16 @@
 function Save-AzRetirementHistory {
     <#
     .SYNOPSIS
-    Saves the change tracking history to a JSON file
+    Saves the change tracking history to a JSON file.
+    .DESCRIPTION
+    Serializes the history object to JSON (depth 10) and writes it to the specified path,
+    creating or overwriting the file.
     .PARAMETER Path
-    Path to the history JSON file
+    Full path to the history JSON file.
     .PARAMETER History
-    The history object to save
+    The history object (with Created and Snapshots properties) to persist.
+    .OUTPUTS
+    None. Writes a file to disk.
     #>
     [CmdletBinding()]
     param(

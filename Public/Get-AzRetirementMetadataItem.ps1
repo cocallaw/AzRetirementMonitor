@@ -5,8 +5,12 @@ Gets Azure Advisor recommendation metadata
 .DESCRIPTION
 Note: This function only works with the -UseAPI mode as Az.Advisor module does not 
 expose metadata retrieval cmdlets. You must run Connect-AzRetirementMonitor -UsingAPI first.
+.OUTPUTS
+PSCustomObject[]
+Each object contains: Name, Id, Type, DisplayName, DependsOn, ApplicableScenarios.
 #>
     [CmdletBinding()]
+    [OutputType([PSCustomObject[]])]
     param()
 
     if (-not $script:AccessToken) {

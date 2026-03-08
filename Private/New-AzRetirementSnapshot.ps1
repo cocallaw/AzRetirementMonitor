@@ -1,9 +1,19 @@
 function New-AzRetirementSnapshot {
     <#
     .SYNOPSIS
-    Creates a snapshot of current retirement recommendations for tracking
+    Creates a snapshot of current retirement recommendations for change tracking.
+    .DESCRIPTION
+    Aggregates the provided recommendation objects into a lightweight snapshot containing
+    the timestamp, total count, per-impact-level counts, per-resource-type counts, and the
+    list of resource IDs. The snapshot is used by Show-AzRetirementComparison and
+    Save-AzRetirementHistory.
     .PARAMETER Recommendations
-    Array of recommendation objects
+    Array of recommendation objects returned by Get-AzRetirementRecommendation. An empty
+    collection is permitted and produces a snapshot with zero counts.
+    .OUTPUTS
+    PSCustomObject
+    An object with properties: Timestamp (ISO 8601 string), TotalCount (int),
+    ImpactCounts (hashtable), ResourceTypeCounts (hashtable), ResourceIds (string[]).
     #>
     # SuppressMessageAttribute: this private function only constructs an in-memory object;
     # no system state is changed, so ShouldProcess/ShouldContinue are not applicable.

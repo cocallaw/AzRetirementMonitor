@@ -12,6 +12,8 @@ Recommendation objects from Get-AzRetirementRecommendation (accepts pipeline inp
 File path for the exported report
 .PARAMETER Format
 Export format: CSV, JSON, or HTML (default: CSV)
+.OUTPUTS
+None. Creates a file at the specified OutputPath.
 .EXAMPLE
 Get-AzRetirementRecommendation | Export-AzRetirementReport -OutputPath "report.csv" -Format CSV
 Exports recommendations to CSV format
@@ -23,6 +25,7 @@ Get-AzRetirementRecommendation -UseAPI | Export-AzRetirementReport -OutputPath "
 Exports API-sourced recommendations to JSON format
 #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
+    [OutputType([void])]
     param(
         [Parameter(Mandatory, ValueFromPipeline)]
         [object[]]$Recommendations,

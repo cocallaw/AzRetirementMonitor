@@ -1,11 +1,19 @@
 function Show-AzRetirementComparison {
     <#
     .SYNOPSIS
-    Displays a comparison between current and previous snapshots
+    Displays a comparison between current and previous retirement snapshots.
+    .DESCRIPTION
+    Writes a formatted change-tracking summary to the console using Write-Host.
+    When a PreviousSnapshot is provided, shows deltas for total count, per-impact-level
+    counts, and lists new and resolved resource IDs. On the first run (no previous
+    snapshot) it displays the baseline counts.
     .PARAMETER CurrentSnapshot
-    Current snapshot object
+    Snapshot object for the current run, as returned by New-AzRetirementSnapshot.
     .PARAMETER PreviousSnapshot
-    Previous snapshot object
+    Optional snapshot object from the previous run. When $null, the output indicates
+    this is the first tracked run.
+    .OUTPUTS
+    None. Writes formatted output to the host.
     #>
     [CmdletBinding()]
     param(
@@ -102,7 +110,11 @@ function Show-AzRetirementComparison {
         
         Write-Host "`nBy Impact Level:" -ForegroundColor Yellow
         foreach ($impact in @('High', 'Medium', 'Low')) {
-            $count = $CurrentSnapshot.ImpactCounts.$impact
+            $count = if ($CurrentSnapshot.ImpactCounts -is [hashtable]) {
+                if ($CurrentSnapshot.ImpactCounts.ContainsKey($impact)) { $CurrentSnapshot.ImpactCounts[$impact] } else { 0 }
+            } else {
+                $val = $CurrentSnapshot.ImpactCounts.$impact; if ($null -ne $val) { [int]$val } else { 0 }
+            }
             Write-Host "  $impact : $count" -ForegroundColor Gray
         }
     }

@@ -1,9 +1,15 @@
 function Get-AzRetirementHistory {
     <#
     .SYNOPSIS
-    Loads the change tracking history from a JSON file
+    Loads the change tracking history from a JSON file.
+    .DESCRIPTION
+    Reads the JSON file at the specified path and returns the deserialized history object.
+    Returns $null if the file does not exist or cannot be parsed.
     .PARAMETER Path
-    Path to the history JSON file
+    Full path to the history JSON file.
+    .OUTPUTS
+    PSCustomObject
+    An object with Created (string) and Snapshots (array) properties, or $null if the file is missing or invalid.
     #>
     [CmdletBinding()]
     param(
