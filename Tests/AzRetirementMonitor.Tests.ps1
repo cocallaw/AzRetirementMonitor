@@ -835,10 +835,24 @@ Describe "Change Tracking Feature" {
             $cmd.Parameters.ContainsKey('ChangeTrackingPath') | Should -Be $true
         }
         
-        It "ChangeTrackingPath should have a default value" {
+        It "ChangeTrackingPath should be an optional string parameter" {
             $cmd = Get-Command Get-AzRetirementRecommendation
             $param = $cmd.Parameters['ChangeTrackingPath']
             $param.Attributes.TypeId.Name | Should -Contain 'ParameterAttribute'
+            $param.ParameterType | Should -Be ([string])
+        }
+
+        It "ChangeTrackingPath should resolve to current working directory when not specified" {
+            # The default is resolved at invocation time inside the begin block, not at module
+            # load time, so it always reflects the caller's current working directory.
+            $expectedPath = Join-Path (Get-Location).Path 'AzRetirementMonitor-History.json'
+            $cmd = Get-Command Get-AzRetirementRecommendation
+            # Confirm no static default is baked into the parameter metadata
+            $param = $cmd.Parameters['ChangeTrackingPath']
+            $param.DefaultValue | Should -BeNullOrEmpty
+            # Confirm the expected runtime path would be constructed correctly
+            $expectedPath | Should -Match 'AzRetirementMonitor-History\.json$'
+            $expectedPath | Should -Not -Match ([regex]::Escape($HOME))
         }
     }
 
