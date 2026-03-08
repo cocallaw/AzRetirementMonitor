@@ -852,7 +852,7 @@ Describe "Change Tracking Feature" {
             $param.DefaultValue | Should -BeNullOrEmpty
             # Confirm the expected runtime path would be constructed correctly
             $expectedPath | Should -Match 'AzRetirementMonitor-History\.json$'
-            $expectedPath | Should -Not -Match ([regex]::Escape($HOME))
+            $expectedPath | Should -BeLike "$(Get-Location)*"
         }
     }
 
