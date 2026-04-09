@@ -416,57 +416,13 @@ For security and transparency, the module is designed with strict limitations:
 - ❌ Cannot disconnect you from Azure CLI or Az.Accounts
 - ✅ Can only read Azure Advisor recommendations for retirement planning
 
-## Contributing Guidelines
+## Contributing
 
-We welcome contributions to AzRetirementMonitor! Here's how you can help:
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, testing, and pull request guidelines.
 
-### Reporting Issues
+## Security
 
-- Use the GitHub issue tracker to report bugs or request features
-- Provide clear reproduction steps for bugs
-- Include PowerShell version, OS, and authentication method used
-
-### Pull Requests
-
-1. **Fork the repository** and create a feature branch
-2. **Follow existing code style** - use the same patterns as existing functions
-3. **Add tests** for new functionality in the `Tests/` directory
-4. **Update documentation** if you change functionality
-5. **Keep changes focused** - one feature or fix per PR
-6. **Test your changes** with both authentication methods (Azure CLI and Az.Accounts)
-
-### Code Style
-
-- Use approved PowerShell verbs (Get, Set, New, Remove, etc.)
-- Include comment-based help for all public functions
-- Use proper parameter validation
-- Write verbose messages for troubleshooting
-- Handle errors gracefully
-
-### Testing
-
-Run the Pester tests before submitting:
-
-```powershell
-# Install Pester if needed
-Install-Module -Name Pester -Force -SkipPublisherCheck
-
-# Run tests
-Invoke-Pester ./Tests/AzRetirementMonitor.Tests.ps1
-```
-
-### Development Setup
-
-1. Clone the repository
-2. Make your changes in a feature branch
-3. Test locally by importing the module:
-
-   ```powershell
-   Import-Module ./AzRetirementMonitor.psd1 -Force
-   ```
-
-4. Run tests and ensure they pass
-5. Submit a pull request
+To report a security vulnerability, **do not open a public issue**. See [SECURITY.md](SECURITY.md) for responsible disclosure instructions.
 
 ## License
 
