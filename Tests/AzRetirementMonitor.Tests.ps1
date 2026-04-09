@@ -198,18 +198,44 @@ Describe "Get-AzRetirementRecommendation" {
     }
 
     It "Should reject an invalid SubscriptionId" {
-        { Get-AzRetirementRecommendation -SubscriptionId "not-a-guid" } | Should -Throw
+        $errorRecord = $null
+
+        try {
+            Get-AzRetirementRecommendation -SubscriptionId "not-a-guid" -ErrorAction Stop
+            throw "Expected parameter validation to fail for SubscriptionId"
+        }
+        catch {
+            $errorRecord = $_
+        }
+
+        $errorRecord | Should -Not -BeNullOrEmpty
+        $errorRecord.Exception.Message | Should -Match "Cannot validate argument on parameter 'SubscriptionId'"
+        $errorRecord.FullyQualifiedErrorId | Should -Match "ParameterArgumentValidationError"
     }
 
     It "Should reject a SubscriptionId with path traversal characters" {
-        { Get-AzRetirementRecommendation -SubscriptionId "../../malicious" } | Should -Throw
+        $errorRecord = $null
+
+        try {
+            Get-AzRetirementRecommendation -SubscriptionId "../../malicious" -ErrorAction Stop
+            throw "Expected parameter validation to fail for SubscriptionId"
+        }
+        catch {
+            $errorRecord = $_
+        }
+
+        $errorRecord | Should -Not -BeNullOrEmpty
+        $errorRecord.Exception.Message | Should -Match "Cannot validate argument on parameter 'SubscriptionId'"
+        $errorRecord.FullyQualifiedErrorId | Should -Match "ParameterArgumentValidationError"
     }
 
     It "Should accept a valid GUID SubscriptionId format" {
         $cmd = Get-Command Get-AzRetirementRecommendation
         $param = $cmd.Parameters['SubscriptionId']
-        $pattern = ($param.Attributes.Where({$_ -is [System.Management.Automation.ValidatePatternAttribute]}))[0].RegexPattern
-        "12345678-1234-1234-1234-123456789012" -match $pattern | Should -Be $true
+        $validatePatterns = $param.Attributes.Where({$_ -is [System.Management.Automation.ValidatePatternAttribute]})
+        $validatePatterns.Count | Should -BeGreaterThan 0
+        $pattern = $validatePatterns[0].RegexPattern
+        $pattern | Should -Be '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
     }
     
     It "Should not have Category parameter" {
