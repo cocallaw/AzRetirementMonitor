@@ -36,7 +36,7 @@ Please provide as much of the following as possible to help us understand and re
 | Confirmation of vulnerability      | Within 10 business days |
 | Release of patch / advisory        | Within 30 days of confirmation (may vary with complexity) |
 
-We will keep you informed throughout the process. If you do not receive an acknowledgement within the timeframe above, please follow up.
+We will keep you informed throughout the process. If you do not receive an acknowledgment within the timeframe above, please follow up.
 
 ## Disclosure Policy
 
