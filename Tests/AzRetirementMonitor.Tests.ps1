@@ -190,6 +190,28 @@ Describe "Get-AzRetirementRecommendation" {
         $param.Attributes.Where({$_.ValueFromPipeline}).Count | Should -BeGreaterThan 0
     }
     
+    It "Should validate SubscriptionId as a GUID format" {
+        $cmd = Get-Command Get-AzRetirementRecommendation
+        $param = $cmd.Parameters['SubscriptionId']
+        $validatePattern = $param.Attributes.Where({$_ -is [System.Management.Automation.ValidatePatternAttribute]})
+        $validatePattern.Count | Should -BeGreaterThan 0
+    }
+
+    It "Should reject an invalid SubscriptionId" {
+        { Get-AzRetirementRecommendation -SubscriptionId "not-a-guid" } | Should -Throw
+    }
+
+    It "Should reject a SubscriptionId with path traversal characters" {
+        { Get-AzRetirementRecommendation -SubscriptionId "../../malicious" } | Should -Throw
+    }
+
+    It "Should accept a valid GUID SubscriptionId format" {
+        $cmd = Get-Command Get-AzRetirementRecommendation
+        $param = $cmd.Parameters['SubscriptionId']
+        $pattern = ($param.Attributes.Where({$_ -is [System.Management.Automation.ValidatePatternAttribute]}))[0].RegexPattern
+        "12345678-1234-1234-1234-123456789012" -match $pattern | Should -Be $true
+    }
+    
     It "Should not have Category parameter" {
         $cmd = Get-Command Get-AzRetirementRecommendation
         $cmd.Parameters.ContainsKey('Category') | Should -Be $false
