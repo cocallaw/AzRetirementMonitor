@@ -97,7 +97,7 @@ Invoke-Pester ./Tests/AzRetirementMonitor.Tests.ps1 -Filter @{ FullName = '*patt
 - [ ] Comment-based help added/updated for any public functions
 - [ ] Pester tests added/updated and all tests pass locally
 - [ ] `FunctionsToExport` in `AzRetirementMonitor.psd1` updated (if adding a new public function)
-- [ ] `README.md` updated (if behaviour or public API changes)
+- [ ] `README.md` updated (if behavior or public API changes)
 - [ ] PR template completed
 
 ## Reporting Issues
