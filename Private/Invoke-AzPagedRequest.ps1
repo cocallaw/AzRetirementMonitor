@@ -2,9 +2,11 @@ function Invoke-AzPagedRequest {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [string]$Uri,
 
         [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [hashtable]$Headers
     )
 
@@ -14,11 +16,17 @@ function Invoke-AzPagedRequest {
     while ($nextUri) {
         Write-Verbose "Requesting page: $nextUri"
 
-        $response = Invoke-RestMethod `
-            -Uri $nextUri `
-            -Headers $Headers `
-            -Method Get `
-            -ErrorAction Stop
+        try {
+            $response = Invoke-RestMethod `
+                -Uri $nextUri `
+                -Headers $Headers `
+                -Method Get `
+                -ErrorAction Stop
+        }
+        catch {
+            Write-Error "Azure API request failed for '$nextUri': $_"
+            return $results.ToArray()
+        }
 
         if ($response.value) {
             $results.AddRange($response.value)

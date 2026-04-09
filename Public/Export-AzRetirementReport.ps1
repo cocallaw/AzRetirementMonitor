@@ -28,6 +28,7 @@ Exports API-sourced recommendations to JSON format
         [object[]]$Recommendations,
 
         [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [string]$OutputPath,
 
         [ValidateSet("CSV", "JSON", "HTML")]

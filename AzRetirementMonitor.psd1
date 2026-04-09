@@ -16,6 +16,9 @@
         'Export-AzRetirementReport'
     )
 
+    CmdletsToExport      = @()
+    AliasesToExport      = @()
+
     PrivateData          = @{
         PSData = @{
             Tags       = @('Azure', 'Advisor', 'Retirement', 'Monitoring')

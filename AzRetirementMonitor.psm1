@@ -9,11 +9,12 @@
 $script:AccessToken = $null
 $script:ApiVersion  = "2025-01-01"
 
-$Public  = Get-ChildItem "$PSScriptRoot/Public/*.ps1" -Recurse
-$Private = Get-ChildItem "$PSScriptRoot/Private/*.ps1" -Recurse
+$Public  = @(Get-ChildItem "$PSScriptRoot/Public/*.ps1" -Recurse -ErrorAction SilentlyContinue)
+$Private = @(Get-ChildItem "$PSScriptRoot/Private/*.ps1" -Recurse -ErrorAction SilentlyContinue)
 
 foreach ($file in @($Public + $Private)) {
-    . $file.FullName
+    try   { . $file.FullName }
+    catch { Write-Error "Failed to import $($file.FullName): $_" }
 }
 
 Export-ModuleMember -Function $Public.BaseName
