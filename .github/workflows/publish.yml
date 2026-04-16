@@ -46,7 +46,7 @@ jobs:
       - name: Run PSScriptAnalyzer (Pre-publish validation)
         shell: pwsh
         run: |
-          $scriptFiles = Get-ChildItem -Path . -Recurse -Include *.ps1 | Where-Object { $_.FullName -notmatch '/Tests/' }
+          $scriptFiles = Get-ChildItem -Path . -Recurse -Include *.ps1,*.psm1 | Where-Object { $_.FullName -notmatch '[/\\]Tests[/\\]' }
           if ($scriptFiles) {
             $results = $scriptFiles | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings PSGallery }
           } else {
