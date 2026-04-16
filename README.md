@@ -1,5 +1,7 @@
 # AzRetirementMonitor
 
+[![CI](https://github.com/cocallaw/AzRetirementMonitor/actions/workflows/ci.yml/badge.svg)](https://github.com/cocallaw/AzRetirementMonitor/actions/workflows/ci.yml)
+
 A PowerShell module for monitoring Azure service retirements and deprecation notices using Azure Advisor recommendations.
 
 ## What Problem Does This Solve?
