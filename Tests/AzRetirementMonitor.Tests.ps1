@@ -190,6 +190,54 @@ Describe "Get-AzRetirementRecommendation" {
         $param.Attributes.Where({$_.ValueFromPipeline}).Count | Should -BeGreaterThan 0
     }
     
+    It "Should validate SubscriptionId as a GUID format" {
+        $cmd = Get-Command Get-AzRetirementRecommendation
+        $param = $cmd.Parameters['SubscriptionId']
+        $validatePattern = $param.Attributes.Where({$_ -is [System.Management.Automation.ValidatePatternAttribute]})
+        $validatePattern.Count | Should -BeGreaterThan 0
+    }
+
+    It "Should reject an invalid SubscriptionId" {
+        $errorRecord = $null
+
+        try {
+            Get-AzRetirementRecommendation -SubscriptionId "not-a-guid" -ErrorAction Stop
+            throw "Expected parameter validation to fail for SubscriptionId"
+        }
+        catch {
+            $errorRecord = $_
+        }
+
+        $errorRecord | Should -Not -BeNullOrEmpty
+        $errorRecord.Exception.Message | Should -Match "Cannot validate argument on parameter 'SubscriptionId'"
+        $errorRecord.FullyQualifiedErrorId | Should -Match "ParameterArgumentValidationError"
+    }
+
+    It "Should reject a SubscriptionId with path traversal characters" {
+        $errorRecord = $null
+
+        try {
+            Get-AzRetirementRecommendation -SubscriptionId "../../malicious" -ErrorAction Stop
+            throw "Expected parameter validation to fail for SubscriptionId"
+        }
+        catch {
+            $errorRecord = $_
+        }
+
+        $errorRecord | Should -Not -BeNullOrEmpty
+        $errorRecord.Exception.Message | Should -Match "Cannot validate argument on parameter 'SubscriptionId'"
+        $errorRecord.FullyQualifiedErrorId | Should -Match "ParameterArgumentValidationError"
+    }
+
+    It "Should accept a valid GUID SubscriptionId format" {
+        $cmd = Get-Command Get-AzRetirementRecommendation
+        $param = $cmd.Parameters['SubscriptionId']
+        $validatePatterns = $param.Attributes.Where({$_ -is [System.Management.Automation.ValidatePatternAttribute]})
+        $validatePatterns.Count | Should -BeGreaterThan 0
+        $pattern = $validatePatterns[0].RegexPattern
+        $pattern | Should -Be '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+    }
+    
     It "Should not have Category parameter" {
         $cmd = Get-Command Get-AzRetirementRecommendation
         $cmd.Parameters.ContainsKey('Category') | Should -Be $false
