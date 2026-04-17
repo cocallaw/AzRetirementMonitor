@@ -81,6 +81,11 @@ None. Displays a success message when authentication completes.
                 # Backwards compatibility for older Az.Accounts versions that return plain text
                 $script:AccessToken = $token.Token
             }
+
+            if ([string]::IsNullOrWhiteSpace($script:AccessToken)) {
+                $script:AccessToken = $null
+                throw "Failed to acquire access token from Az.Accounts. Ensure you are connected with 'Connect-AzAccount'."
+            }
         }
         else {
             $null = & az account show 2>$null
@@ -93,6 +98,11 @@ None. Displays a success message when authentication completes.
                 --resource https://management.azure.com `
                 --query accessToken `
                 --output tsv
+
+            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($script:AccessToken)) {
+                $script:AccessToken = $null
+                throw "Failed to acquire access token from Azure CLI. Ensure you are logged in with 'az login' and have access to the target subscription."
+            }
         }
 
         Write-Host "Authenticated to Azure successfully for API access"

@@ -144,6 +144,74 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
     }
 }
 
+Describe "Connect-AzRetirementMonitor Token Validation" {
+    BeforeAll {
+        $script:CreatedStubs = @()
+        if (-not (Get-Command Get-AzContext -ErrorAction SilentlyContinue)) {
+            function global:Get-AzContext { }
+            $script:CreatedStubs += 'Get-AzContext'
+        }
+        if (-not (Get-Command Get-AzAccessToken -ErrorAction SilentlyContinue)) {
+            function global:Get-AzAccessToken { }
+            $script:CreatedStubs += 'Get-AzAccessToken'
+        }
+    }
+
+    AfterAll {
+        foreach ($stubName in $script:CreatedStubs) {
+            Remove-Item "Function:\$stubName" -ErrorAction SilentlyContinue
+        }
+    }
+
+    BeforeEach {
+        $module = Get-Module AzRetirementMonitor
+        & $module { $script:AccessToken = $null }
+    }
+
+    Context "Azure CLI path returns empty token" {
+        It "Should report error when az account get-access-token returns empty string" {
+            Mock -ModuleName AzRetirementMonitor -CommandName 'az' -MockWith {
+                $global:LASTEXITCODE = 0
+                return ''
+            }
+
+            Connect-AzRetirementMonitor -UsingAPI -ErrorVariable connectError -ErrorAction SilentlyContinue
+            $connectError | Should -Not -BeNullOrEmpty
+            $connectError[0].Exception.Message | Should -BeLike "*Failed to acquire access token*"
+
+            $module = Get-Module AzRetirementMonitor
+            $storedToken = & $module { $script:AccessToken }
+            $storedToken | Should -BeNullOrEmpty
+        }
+    }
+
+    Context "Az.Accounts path returns empty token" {
+        It "Should report error when Get-AzAccessToken returns null token" {
+            Mock -ModuleName AzRetirementMonitor Get-Module -ParameterFilter { $Name -eq 'Az.Accounts' -and $ListAvailable } {
+                return @{ Name = 'Az.Accounts'; Version = '5.0.0' }
+            }
+            Mock -ModuleName AzRetirementMonitor Import-Module { }
+            Mock -ModuleName AzRetirementMonitor Get-AzContext {
+                return @{ Account = @{ Id = "test@example.com" } }
+            }
+            Mock -ModuleName AzRetirementMonitor Get-AzAccessToken {
+                return [PSCustomObject]@{
+                    Token = $null
+                    ExpiresOn = [DateTimeOffset]::UtcNow.AddHours(1)
+                }
+            }
+
+            Connect-AzRetirementMonitor -UsingAPI -UseAzPowerShell -ErrorVariable connectError -ErrorAction SilentlyContinue
+            $connectError | Should -Not -BeNullOrEmpty
+            $connectError[0].Exception.Message | Should -BeLike "*Failed to acquire access token*"
+
+            $module = Get-Module AzRetirementMonitor
+            $storedToken = & $module { $script:AccessToken }
+            $storedToken | Should -BeNullOrEmpty
+        }
+    }
+}
+
 Describe "Disconnect-AzRetirementMonitor" {
     BeforeEach {
         # Clear the token before each test
