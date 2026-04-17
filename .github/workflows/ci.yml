@@ -48,11 +48,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
+        os: [ubuntu-latest, windows-latest]
+        shell: [pwsh, powershell]
+        exclude:
           - os: ubuntu-latest
-            shell: pwsh
-          - os: windows-latest
             shell: powershell
+          - os: windows-latest
+            shell: pwsh
 
     steps:
       - name: Checkout code
@@ -65,7 +67,7 @@ jobs:
           Write-Host "PSEdition: $($PSVersionTable.PSEdition)"
 
       - name: Verify expected PowerShell edition
-        if: matrix.shell == 'powershell'
+        if: ${{ matrix.shell == 'powershell' }}
         shell: powershell
         run: |
           if ($PSVersionTable.PSEdition -ne 'Desktop') {
