@@ -60,6 +60,27 @@ jobs:
             Write-Host "No issues found by PSScriptAnalyzer"
           }
       
+      - name: Install Pester (Pre-publish validation)
+        shell: pwsh
+        run: |
+          Install-Module -Name Pester -MinimumVersion 5.0.0 -MaximumVersion 5.99.99 -Force -Scope CurrentUser -SkipPublisherCheck
+
+      - name: Run Pester Tests (Pre-publish validation)
+        shell: pwsh
+        run: |
+          Import-Module Pester -MinimumVersion 5.0.0 -MaximumVersion 5.99.99
+          $testPath = "Tests/AzRetirementMonitor.Tests.ps1"
+          if (Test-Path $testPath) {
+            $config = New-PesterConfiguration
+            $config.Run.Path = $testPath
+            $config.Run.Exit = $true
+            $config.Output.Verbosity = 'Detailed'
+            Invoke-Pester -Configuration $config
+          } else {
+            Write-Error "Test file not found at: $testPath"
+            exit 1
+          }
+
       - name: Prepare Module for Publishing
         shell: pwsh
         run: |
