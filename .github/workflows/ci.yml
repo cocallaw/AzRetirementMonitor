@@ -7,31 +7,26 @@ on:
     branches: [ main, master ]
 
 jobs:
-  lint-and-test:
-    name: Lint and Test PowerShell Module
+  lint:
+    name: Lint PowerShell Module
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Setup PowerShell
-        shell: pwsh
-        run: |
-          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
-      
+
       - name: Install PSScriptAnalyzer
         shell: pwsh
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
-      
+
       - name: Run PSScriptAnalyzer
         shell: pwsh
         run: |
-          $scriptFiles = Get-ChildItem -Path . -Recurse -Include *.ps1 | Where-Object { $_.FullName -notmatch '/Tests/' }
+          $scriptFiles = Get-ChildItem -Path . -Recurse -Include *.ps1,*.psm1 | Where-Object { $_.FullName -notmatch '[/\\]Tests[/\\]' }
           if ($scriptFiles) {
             $results = $scriptFiles | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings PSGallery }
           } else {
@@ -44,15 +39,56 @@ jobs:
           } else {
             Write-Host "No issues found by PSScriptAnalyzer"
           }
-      
+
+  test:
+    name: Test (${{ matrix.os }}, ${{ matrix.shell }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            shell: pwsh
+          - os: windows-latest
+            shell: powershell
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Print PowerShell version
+        shell: ${{ matrix.shell }}
+        run: |
+          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+          Write-Host "PSEdition: $($PSVersionTable.PSEdition)"
+
+      - name: Verify expected PowerShell edition
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          if ($PSVersionTable.PSEdition -ne 'Desktop') {
+            Write-Error "Expected PSEdition 'Desktop' but got '$($PSVersionTable.PSEdition)'"
+            exit 1
+          }
+          if ($PSVersionTable.PSVersion.Major -ne 5) {
+            Write-Error "Expected PowerShell 5.x but got $($PSVersionTable.PSVersion)"
+            exit 1
+          }
+          Write-Host "Confirmed: Windows PowerShell $($PSVersionTable.PSVersion) Desktop"
+
       - name: Install Pester
-        shell: pwsh
+        shell: ${{ matrix.shell }}
         run: |
-          Install-Module -Name Pester -Force -Scope CurrentUser -SkipPublisherCheck
-      
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Pester -MinimumVersion 5.0.0 -MaximumVersion 5.99.99 -Force -Scope CurrentUser -SkipPublisherCheck
+
       - name: Run Pester Tests
-        shell: pwsh
+        shell: ${{ matrix.shell }}
         run: |
+          Import-Module Pester -MinimumVersion 5.0.0 -MaximumVersion 5.99.99
+          Write-Host "Pester version: $((Get-Module Pester).Version)"
           $testPath = "Tests/AzRetirementMonitor.Tests.ps1"
           if (Test-Path $testPath) {
             $config = New-PesterConfiguration
