@@ -12,6 +12,7 @@ function Invoke-AzPagedRequest {
     )
 
     $results = [System.Collections.Generic.List[object]]::new()
+    $allowedHosts = @("management.azure.com")
     $nextUri = $Uri
     $pageCount = 0
 
