@@ -146,19 +146,19 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
 
 Describe "Connect-AzRetirementMonitor Token Validation" {
     BeforeAll {
-        $script:CreatedStubs = @()
+        $script:TokenValidationCreatedStubs = @()
         if (-not (Get-Command Get-AzContext -ErrorAction SilentlyContinue)) {
             function global:Get-AzContext { }
-            $script:CreatedStubs += 'Get-AzContext'
+            $script:TokenValidationCreatedStubs += 'Get-AzContext'
         }
         if (-not (Get-Command Get-AzAccessToken -ErrorAction SilentlyContinue)) {
             function global:Get-AzAccessToken { }
-            $script:CreatedStubs += 'Get-AzAccessToken'
+            $script:TokenValidationCreatedStubs += 'Get-AzAccessToken'
         }
     }
 
     AfterAll {
-        foreach ($stubName in $script:CreatedStubs) {
+        foreach ($stubName in $script:TokenValidationCreatedStubs) {
             Remove-Item "Function:\$stubName" -ErrorAction SilentlyContinue
         }
     }

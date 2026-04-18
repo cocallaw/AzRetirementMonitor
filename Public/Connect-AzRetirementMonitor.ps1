@@ -55,6 +55,9 @@ None. Displays a success message when authentication completes.
     Write-Verbose "This connection is only needed when using Get-AzRetirementRecommendation -UseAPI"
 
     try {
+        # Clear any previously stored token so a failure never leaves a stale token in scope
+        $script:AccessToken = $null
+
         if ($UseAzPowerShell) {
             if (-not (Get-Module -ListAvailable -Name Az.Accounts)) {
                 throw "Az.Accounts module is not installed."
