@@ -5,7 +5,7 @@ function Invoke-AzPagedRequest {
         [string]$Uri,
 
         [Parameter(Mandatory)]
-        [hashtable]$Headers
+        [hashtable]$Headers,
 
         [Parameter()]
         [int]$PageLimit = 100
@@ -18,7 +18,7 @@ function Invoke-AzPagedRequest {
     while ($nextUri) {
         $pageCount++
         if ($pageCount -gt $PageLimit) {
-            Write-Warning "Pagination limit ($MaxPages pages) reached. Results may be incomplete."
+            Write-Warning "Pagination limit ($PageLimit pages) reached. Results may be incomplete."
             break
         }
         else {
