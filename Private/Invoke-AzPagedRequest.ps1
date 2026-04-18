@@ -17,11 +17,11 @@ function Invoke-AzPagedRequest {
 
     while ($nextUri) {
         $pageCount++
-        if ($pageCount -gt $PageLimit){
+        if ($pageCount -gt $PageLimit) {
             Write-Warning "Pagination limit ($MaxPages pages) reached. Results may be incomplete."
             break
         }
-        else{
+        else {
             Write-Verbose "Requesting page: $nextUri"
             $response = Invoke-RestMethod `
                 -Uri $nextUri `
@@ -31,11 +31,11 @@ function Invoke-AzPagedRequest {
 
             if ($response.value) {
                 $results.AddRange($response.value)
-                }
+            }
 
             $nextUri = $response.nextLink
-            }
         }
+    }
 
     return $results.ToArray()
 }
