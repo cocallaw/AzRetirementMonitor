@@ -36,6 +36,7 @@ function Invoke-AzPagedRequest {
 
             if ($response.nextLink){
                 $parsedUri = $null
+                # Verify that URI is not malformed
                 if (-not [System.Uri]::TryCreate($response.nextLink, [System.UriKind]::Absolute, [ref]$parsedUri)) {
             if ($response.nextLink) {
                 $parsedUri = $null
