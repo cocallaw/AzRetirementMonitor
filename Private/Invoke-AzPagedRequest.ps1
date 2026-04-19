@@ -38,8 +38,7 @@ function Invoke-AzPagedRequest {
                 $parsedUri = [System.Uri]::new($response.nextLink)
                 # Verify that URI returned is secure and in the list of $allowedHosts
                 if ($parsedUri.Scheme -ne "https" -or $parsedUri.Host -notin $allowedHosts) {
-                    Write-Error "Untrusted nextLink host: $($parsedUri.Host). Stopping pagination."
-                    break
+                    throw "Untrusted nextLink host: $($parsedUri.Host). Stopping pagination."
                 }
                 $nextUri = $response.nextLink
             } else {
