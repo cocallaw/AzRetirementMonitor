@@ -12,6 +12,7 @@ function Invoke-AzPagedRequest {
     )
 
     $results = [System.Collections.Generic.List[object]]::new()
+    $allowedHosts = @("management.azure.com")
     $nextUri = $Uri
     $pageCount = 0
 
@@ -33,7 +34,35 @@ function Invoke-AzPagedRequest {
                 $results.AddRange($response.value)
             }
 
-            $nextUri = $response.nextLink
+            if ($response.nextLink){
+                $parsedUri = $null
+                # Verify that URI is not malformed
+                if (-not [System.Uri]::TryCreate($response.nextLink, [System.UriKind]::Absolute, [ref]$parsedUri)) {
+            if ($response.nextLink) {
+                $parsedUri = $null
+                $isValidNextLink = [System.Uri]::TryCreate(
+                    $response.nextLink,
+                    [System.UriKind]::Absolute,
+                    [ref]$parsedUri
+                )
+
+                if (-not $isValidNextLink) {
+                    throw "Invalid nextLink URI: $($response.nextLink). Stopping pagination."
+                }
+
+                # Verify that URI returned is secure and in the list of $allowedHosts
+                if ($parsedUri.Scheme -ne "https") {
+                    throw "Insecure nextLink scheme: $($parsedUri.Scheme). Stopping pagination."
+                }
+
+                if ($parsedUri.Host -notin $allowedHosts) {
+                    throw "Untrusted nextLink host: $($parsedUri.Host). Stopping pagination."
+                }
+
+                $nextUri = $parsedUri.AbsoluteUri
+            } else {
+                $nextUri = $null
+            }
         }
     }
 
