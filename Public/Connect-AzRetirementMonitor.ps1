@@ -22,6 +22,8 @@ Required RBAC permissions: Reader role at subscription or resource group scope
 
 The token is stored in a module-scoped variable for the duration of the PowerShell session
 and is validated for proper audience (https://management.azure.com) before use.
+Note: Module scope is not a security boundary — avoid running untrusted scripts in the same session.
+Run Disconnect-AzRetirementMonitor when finished to clear the token reference.
 .PARAMETER UsingAPI
 Required switch to confirm you intend to use API-based access. This prevents accidentally 
 connecting when using the default Az.Advisor module method.
