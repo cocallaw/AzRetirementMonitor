@@ -408,6 +408,36 @@ Describe "Export-AzRetirementReport" {
     }
 }
 
+Describe "Export-AzRetirementReport OutputPath Validation" {
+    It "Should reject OutputPath with path traversal sequences" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        { $testRec | Export-AzRetirementReport -OutputPath "../../etc/malicious.csv" -Format CSV -Confirm:$false } | Should -Throw "*Path traversal*"
+    }
+
+    It "Should reject OutputPath when parent directory does not exist" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        { $testRec | Export-AzRetirementReport -OutputPath "/nonexistent/dir/report.csv" -Format CSV -Confirm:$false } | Should -Throw "*Directory does not exist*"
+    }
+
+    It "Should accept OutputPath in current directory" {
+        $cmd = Get-Command Export-AzRetirementReport
+        $param = $cmd.Parameters['OutputPath']
+        $param | Should -Not -BeNull
+    }
+}
+
 Describe "Export-AzRetirementReport Transformation Logic" {
     BeforeAll {
         # Create a temporary directory for test outputs
