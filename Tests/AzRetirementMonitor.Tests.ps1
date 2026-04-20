@@ -871,3 +871,66 @@ Describe "Invoke-AzPagedRequest NextLink Validation" {
         $results[0].id | Should -Be 1
     }
 }
+
+Describe "Invoke-AzPagedRequest Retry Logic" {
+    BeforeAll {
+        $module = Get-Module AzRetirementMonitor
+    }
+
+    It "Should retry on 429 throttling and succeed" {
+        $script:retryCallCount = 0
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = $null
+        }
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:retryCallCount++
+            if ($script:retryCallCount -eq 1) {
+                $mockResponse = New-Object System.Net.Http.HttpResponseMessage -ArgumentList ([System.Net.HttpStatusCode]::TooManyRequests)
+                $exception = [Microsoft.PowerShell.Commands.HttpResponseException]::new("429 Too Many Requests", $mockResponse)
+                throw $exception
+            }
+            return $page1
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" }
+        }
+
+        $results.Count | Should -Be 1
+        $script:retryCallCount | Should -Be 2
+    }
+
+    It "Should return partial results after exhausting retries" {
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $mockResponse = New-Object System.Net.Http.HttpResponseMessage -ArgumentList ([System.Net.HttpStatusCode]::InternalServerError)
+            $exception = [Microsoft.PowerShell.Commands.HttpResponseException]::new("500 Server Error", $mockResponse)
+            throw $exception
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" } -ErrorAction SilentlyContinue
+        }
+
+        $results.Count | Should -Be 0
+    }
+
+    It "Should not retry on non-retryable errors (e.g. 403)" {
+        $script:nonRetryCallCount = 0
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:nonRetryCallCount++
+            $mockResponse = New-Object System.Net.Http.HttpResponseMessage -ArgumentList ([System.Net.HttpStatusCode]::Forbidden)
+            $exception = [Microsoft.PowerShell.Commands.HttpResponseException]::new("403 Forbidden", $mockResponse)
+            throw $exception
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" } -ErrorAction SilentlyContinue
+        }
+
+        $script:nonRetryCallCount | Should -Be 1
+    }
+}

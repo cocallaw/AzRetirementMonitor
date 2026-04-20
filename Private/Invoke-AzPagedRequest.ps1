@@ -24,11 +24,47 @@ function Invoke-AzPagedRequest {
         }
         else {
             Write-Verbose "Requesting page: $nextUri"
-            $response = Invoke-RestMethod `
-                -Uri $nextUri `
-                -Headers $Headers `
-                -Method Get `
-                -ErrorAction Stop
+            $response = $null
+            $retryCount = 0
+            $maxRetries = 3
+
+            while ($retryCount -le $maxRetries) {
+                try {
+                    $response = Invoke-RestMethod `
+                        -Uri $nextUri `
+                        -Headers $Headers `
+                        -Method Get `
+                        -ErrorAction Stop
+                    break
+                }
+                catch {
+                    $statusCode = $null
+                    if ($_.Exception.Response) {
+                        $statusCode = [int]$_.Exception.Response.StatusCode
+                    }
+
+                    $retryable = $statusCode -in @(429, 500, 502, 503, 504)
+                    if ($retryable -and $retryCount -lt $maxRetries) {
+                        $retryAfter = $null
+                        if ($_.Exception.Response.Headers) {
+                            $retryAfter = $_.Exception.Response.Headers["Retry-After"]
+                        }
+                        if ($retryAfter) {
+                            $delay = [int]$retryAfter
+                        }
+                        else {
+                            $delay = [math]::Pow(2, $retryCount)
+                        }
+                        Write-Verbose "Request failed with status $statusCode. Retrying in $delay seconds ($($retryCount + 1)/$maxRetries)..."
+                        Start-Sleep -Seconds $delay
+                        $retryCount++
+                    }
+                    else {
+                        Write-Error "Azure API request failed for ${nextUri}: $_"
+                        return $results.ToArray()
+                    }
+                }
+            }
 
             if ($response.value) {
                 $results.AddRange($response.value)
