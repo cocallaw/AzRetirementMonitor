@@ -158,10 +158,12 @@ Gets recommendations using the REST API method
 
                 # Common filter for ServiceUpgradeAndRetirement subcategory
                 $subcategoryFilter = {
-                    # Parse extended properties to check subcategory
                     if ($_.ExtendedProperty) {
                         $extProps = $_.ExtendedProperty | ConvertFrom-Json
-                        $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement'
+                        if ($extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
+                            $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
+                            $true
+                        } else { $false }
                     }
                     else {
                         $false
