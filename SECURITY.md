@@ -54,3 +54,12 @@ This security policy covers the PowerShell source code in this repository. It do
 
 - Third-party dependencies (Az.Accounts, Az.Advisor, Azure Advisor REST API) — report those to Microsoft.
 - Infrastructure or deployment environments operated by individual users.
+
+## Token Storage Considerations
+
+When using API mode (`Connect-AzRetirementMonitor -UsingAPI`), the access token is stored as a module-scoped variable for the duration of the session. Be aware of the following:
+
+- **Module scope is not a security boundary.** Any code running in the same PowerShell session can access module-scoped variables via `& (Get-Module ModuleName) { $script:Variable }`. Do not run untrusted scripts alongside this module when authenticated.
+- **Token lifetime.** The token is a short-lived Azure access token (typically 60–90 minutes). It is scoped to `https://management.azure.com` with read-only permissions.
+- **Clearing the token.** `Disconnect-AzRetirementMonitor` sets the variable to `$null`, but the string may remain in managed memory until garbage collected. PowerShell does not offer deterministic memory clearing for strings.
+- **Best practice.** Run `Disconnect-AzRetirementMonitor` when finished, and prefer isolated sessions or dedicated automation accounts for sensitive environments.
