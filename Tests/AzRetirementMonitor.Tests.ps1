@@ -796,3 +796,78 @@ Describe "Token Audience Validation" {
         $testResult | Should -Be $false
     }
 }
+
+Describe "Invoke-AzPagedRequest NextLink Validation" {
+    BeforeAll {
+        $module = Get-Module AzRetirementMonitor
+    }
+
+    It "Should follow a trusted HTTPS nextLink and return all pages" {
+        $script:mockCallCount = 0
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = "https://management.azure.com/page2"
+        }
+        $page2 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 2 })
+            nextLink = $null
+        }
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:mockCallCount++
+            if ($script:mockCallCount -eq 1) { return $page1 } else { return $page2 }
+        }
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/page1" -Headers @{ Authorization = "Bearer test" }
+        }
+
+        $results.Count | Should -Be 2
+        $results[0].id | Should -Be 1
+        $results[1].id | Should -Be 2
+    }
+
+    It "Should stop pagination and return partial results for HTTP nextLink" {
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = "http://management.azure.com/page2"
+        }
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor { return $page1 }
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/page1" -Headers @{ Authorization = "Bearer test" } -ErrorVariable pagedErrors -ErrorAction SilentlyContinue
+        }
+
+        $results.Count | Should -Be 1
+        $results[0].id | Should -Be 1
+    }
+
+    It "Should stop pagination and return partial results for untrusted host" {
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = "https://evil.example.com/page2"
+        }
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor { return $page1 }
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/page1" -Headers @{ Authorization = "Bearer test" } -ErrorVariable pagedErrors -ErrorAction SilentlyContinue
+        }
+
+        $results.Count | Should -Be 1
+        $results[0].id | Should -Be 1
+    }
+
+    It "Should stop pagination and return partial results for invalid URI" {
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = "not-a-valid-uri"
+        }
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor { return $page1 }
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/page1" -Headers @{ Authorization = "Bearer test" } -ErrorVariable pagedErrors -ErrorAction SilentlyContinue
+        }
+
+        $results.Count | Should -Be 1
+        $results[0].id | Should -Be 1
+    }
+}
