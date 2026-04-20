@@ -34,10 +34,6 @@ function Invoke-AzPagedRequest {
                 $results.AddRange($response.value)
             }
 
-            if ($response.nextLink){
-                $parsedUri = $null
-                # Verify that URI is not malformed
-                if (-not [System.Uri]::TryCreate($response.nextLink, [System.UriKind]::Absolute, [ref]$parsedUri)) {
             if ($response.nextLink) {
                 $parsedUri = $null
                 $isValidNextLink = [System.Uri]::TryCreate(
@@ -47,16 +43,19 @@ function Invoke-AzPagedRequest {
                 )
 
                 if (-not $isValidNextLink) {
-                    throw "Invalid nextLink URI: $($response.nextLink). Stopping pagination."
+                    Write-Error "Invalid nextLink URI: $($response.nextLink). Stopping pagination."
+                    break
                 }
 
                 # Verify that URI returned is secure and in the list of $allowedHosts
                 if ($parsedUri.Scheme -ne "https") {
-                    throw "Insecure nextLink scheme: $($parsedUri.Scheme). Stopping pagination."
+                    Write-Error "Insecure nextLink scheme: $($parsedUri.Scheme). Stopping pagination."
+                    break
                 }
 
                 if ($parsedUri.Host -notin $allowedHosts) {
-                    throw "Untrusted nextLink host: $($parsedUri.Host). Stopping pagination."
+                    Write-Error "Untrusted nextLink host: $($parsedUri.Host). Stopping pagination."
+                    break
                 }
 
                 $nextUri = $parsedUri.AbsoluteUri
