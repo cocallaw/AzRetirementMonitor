@@ -35,11 +35,13 @@ Exports API-sourced recommendations to JSON format
     )
 
     begin {
-        $allRecs = @()
+        $allRecs = [System.Collections.Generic.List[object]]::new()
     }
 
     process {
-        $allRecs += $Recommendations
+        foreach ($rec in $Recommendations) {
+            $allRecs.Add($rec)
+        }
     }
 
     end {
