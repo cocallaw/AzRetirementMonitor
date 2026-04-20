@@ -5,6 +5,13 @@ Gets Azure Advisor recommendation metadata
 .DESCRIPTION
 Note: This function only works with the -UseAPI mode as Az.Advisor module does not 
 expose metadata retrieval cmdlets. You must run Connect-AzRetirementMonitor -UsingAPI first.
+.EXAMPLE
+Get-AzRetirementMetadataItem
+Gets all retirement-related metadata items from Azure Advisor.
+.OUTPUTS
+PSCustomObject
+.LINK
+https://learn.microsoft.com/rest/api/advisor/metadata
 #>
     [CmdletBinding()]
     param()
