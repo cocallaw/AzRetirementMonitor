@@ -966,3 +966,12 @@ Describe "Invoke-AzPagedRequest Retry Logic" {
         Remove-Variable -Name testRetryAfterHeaders -Scope Global -ErrorAction SilentlyContinue
     }
 }
+
+Describe "Get-AzRetirementRecommendation -Stream Parameter" {
+    It "Should have a Stream switch parameter" {
+        $cmd = Get-Command Get-AzRetirementRecommendation
+        $param = $cmd.Parameters['Stream']
+        $param | Should -Not -BeNull
+        $param.ParameterType.Name | Should -Be 'SwitchParameter'
+    }
+}
