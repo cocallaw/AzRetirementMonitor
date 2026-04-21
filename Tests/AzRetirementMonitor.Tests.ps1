@@ -886,8 +886,9 @@ Describe "Invoke-AzPagedRequest Retry Logic" {
         Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
             $script:retryCallCount++
             if ($script:retryCallCount -eq 1) {
-                $mockResponse = New-Object System.Net.Http.HttpResponseMessage -ArgumentList ([System.Net.HttpStatusCode]::TooManyRequests)
-                $exception = [Microsoft.PowerShell.Commands.HttpResponseException]::new("429 Too Many Requests", $mockResponse)
+                $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::TooManyRequests; Headers = $null }
+                $exception = New-Object System.Net.WebException "429 Too Many Requests"
+                $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
                 throw $exception
             }
             return $page1
@@ -904,8 +905,9 @@ Describe "Invoke-AzPagedRequest Retry Logic" {
 
     It "Should return partial results after exhausting retries" {
         Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
-            $mockResponse = New-Object System.Net.Http.HttpResponseMessage -ArgumentList ([System.Net.HttpStatusCode]::InternalServerError)
-            $exception = [Microsoft.PowerShell.Commands.HttpResponseException]::new("500 Server Error", $mockResponse)
+            $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::InternalServerError; Headers = $null }
+            $exception = New-Object System.Net.WebException "500 Server Error"
+            $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
             throw $exception
         }
         Mock Start-Sleep -ModuleName AzRetirementMonitor {}
@@ -921,8 +923,9 @@ Describe "Invoke-AzPagedRequest Retry Logic" {
         $script:nonRetryCallCount = 0
         Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
             $script:nonRetryCallCount++
-            $mockResponse = New-Object System.Net.Http.HttpResponseMessage -ArgumentList ([System.Net.HttpStatusCode]::Forbidden)
-            $exception = [Microsoft.PowerShell.Commands.HttpResponseException]::new("403 Forbidden", $mockResponse)
+            $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::Forbidden; Headers = $null }
+            $exception = New-Object System.Net.WebException "403 Forbidden"
+            $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
             throw $exception
         }
         Mock Start-Sleep -ModuleName AzRetirementMonitor {}
@@ -932,5 +935,34 @@ Describe "Invoke-AzPagedRequest Retry Logic" {
         }
 
         $script:nonRetryCallCount | Should -Be 1
+    }
+
+    It "Should honor Retry-After header with delta-seconds value" {
+        $script:retryAfterCallCount = 0
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = $null
+        }
+
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:retryAfterCallCount++
+            if ($script:retryAfterCallCount -eq 1) {
+                $mockHeaders = @{ "Retry-After" = "5" }
+                $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::TooManyRequests; Headers = $mockHeaders }
+                $exception = New-Object System.Exception "429 Too Many Requests"
+                $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
+                throw $exception
+            }
+            return $page1
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" }
+        }
+
+        $results.Count | Should -Be 1
+        Should -Invoke Start-Sleep -ModuleName AzRetirementMonitor -ParameterFilter { $Seconds -eq 5 }
+        Remove-Variable -Name testRetryAfterHeaders -Scope Global -ErrorAction SilentlyContinue
     }
 }

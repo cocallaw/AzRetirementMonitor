@@ -39,21 +39,53 @@ function Invoke-AzPagedRequest {
                 }
                 catch {
                     $statusCode = $null
-                    if ($_.Exception.Response) {
-                        $statusCode = [int]$_.Exception.Response.StatusCode
+                    $errorResponse = $_.Exception.Response
+                    if ($errorResponse) {
+                        $statusCode = [int]$errorResponse.StatusCode
                     }
 
                     $retryable = $statusCode -in @(429, 500, 502, 503, 504)
                     if ($retryable -and $retryCount -lt $maxRetries) {
-                        $retryAfter = $null
-                        if ($_.Exception.Response.Headers) {
-                            $retryAfter = $_.Exception.Response.Headers["Retry-After"]
+                        $delay = $null
+
+                        # Extract Retry-After header safely across PS versions
+                        try {
+                            $retryAfterValue = $null
+                            if ($null -ne $errorResponse) {
+                                $responseHeaders = $errorResponse.Headers
+                                if ($null -ne $responseHeaders) {
+                                    if ($responseHeaders -is [System.Net.WebHeaderCollection]) {
+                                        $retryAfterValue = $responseHeaders.Get("Retry-After")
+                                    }
+                                    elseif ($responseHeaders -is [hashtable]) {
+                                        $retryAfterValue = $responseHeaders["Retry-After"]
+                                    }
+                                    elseif ($null -ne $responseHeaders.PSObject -and $responseHeaders.PSObject.Methods.Name -contains 'TryGetValues') {
+                                        $headerValues = $null
+                                        if ($responseHeaders.TryGetValues("Retry-After", [ref]$headerValues)) {
+                                            $retryAfterValue = $headerValues | Select-Object -First 1
+                                        }
+                                    }
+                                }
+                            }
+
+                            if ($retryAfterValue) {
+                                $retryAfterSeconds = 0
+                                $retryAfterDate = [System.DateTimeOffset]::MinValue
+                                if ([int]::TryParse($retryAfterValue, [ref]$retryAfterSeconds)) {
+                                    $delay = $retryAfterSeconds
+                                }
+                                elseif ([System.DateTimeOffset]::TryParse($retryAfterValue, [ref]$retryAfterDate)) {
+                                    $delay = [int][math]::Ceiling([math]::Max(0, ($retryAfterDate - [System.DateTimeOffset]::UtcNow).TotalSeconds))
+                                }
+                            }
                         }
-                        if ($retryAfter) {
-                            $delay = [int]$retryAfter
+                        catch {
+                            # If header extraction fails, fall through to exponential backoff
                         }
-                        else {
-                            $delay = [math]::Pow(2, $retryCount)
+
+                        if ($null -eq $delay) {
+                            $delay = [int][math]::Pow(2, $retryCount)
                         }
                         Write-Verbose "Request failed with status $statusCode. Retrying in $delay seconds ($($retryCount + 1)/$maxRetries)..."
                         Start-Sleep -Seconds $delay
