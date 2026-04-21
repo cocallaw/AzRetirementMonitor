@@ -18,6 +18,9 @@ The API method requires:
 One or more subscription IDs to query. Defaults to all subscriptions.
 .PARAMETER UseAPI
 Use the Azure REST API instead of Az.Advisor PowerShell module. Requires Connect-AzRetirementMonitor first.
+.PARAMETER Stream
+Emit recommendation objects to the pipeline as they are retrieved instead of buffering all results.
+This reduces memory usage and delivers first output sooner for large tenants.
 .EXAMPLE
 Get-AzRetirementRecommendation
 Gets all retirement recommendations using Az.Advisor module (default)
@@ -35,7 +38,10 @@ Gets recommendations using the REST API method
         [string[]]$SubscriptionId,
 
         [Parameter()]
-        [switch]$UseAPI
+        [switch]$UseAPI,
+
+        [Parameter()]
+        [switch]$Stream
     )
 
     begin {
@@ -126,7 +132,7 @@ Gets recommendations using the REST API method
                             $null
                         }
 
-                        $allRecommendations.Add([PSCustomObject]@{
+                        $recObject = [PSCustomObject]@{
                             SubscriptionId   = $subId
                             ResourceId       = $resourceId
                             ResourceName     = ($resourceId -split "/")[-1]
@@ -142,7 +148,13 @@ Gets recommendations using the REST API method
                             RecommendationId = $rec.name
                             LearnMoreLink    = $rec.properties.learnMoreLink
                             ResourceLink     = $resourceLink
-                        })
+                        }
+                        if ($Stream) {
+                            Write-Output $recObject
+                        }
+                        else {
+                            $allRecommendations.Add($recObject)
+                        }
                     }
                 }
                 catch {
@@ -323,7 +335,7 @@ Gets recommendations using the REST API method
                         $null
                     }
 
-                    $allRecommendations.Add([PSCustomObject]@{
+                    $recObject = [PSCustomObject]@{
                         SubscriptionId   = $subscriptionId
                         ResourceId       = $resourceId
                         ResourceName     = if ($resourceId) { ($resourceId -split "/")[-1] } else { "N/A" }
@@ -339,7 +351,13 @@ Gets recommendations using the REST API method
                         RecommendationId = $rec.Name
                         LearnMoreLink    = if ($rec.LearnMoreLink) { $rec.LearnMoreLink } else { $null }
                         ResourceLink     = $resourceLink
-                    })
+                    }
+                    if ($Stream) {
+                        Write-Output $recObject
+                    }
+                    else {
+                        $allRecommendations.Add($recObject)
+                    }
                 }
             }
             catch {
@@ -349,6 +367,8 @@ Gets recommendations using the REST API method
     }
 
     end {
-        return $allRecommendations.ToArray()
+        if (-not $Stream) {
+            return $allRecommendations.ToArray()
+        }
     }
 }

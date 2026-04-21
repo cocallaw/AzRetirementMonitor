@@ -871,3 +871,12 @@ Describe "Invoke-AzPagedRequest NextLink Validation" {
         $results[0].id | Should -Be 1
     }
 }
+
+Describe "Get-AzRetirementRecommendation -Stream Parameter" {
+    It "Should have a Stream switch parameter" {
+        $cmd = Get-Command Get-AzRetirementRecommendation
+        $param = $cmd.Parameters['Stream']
+        $param | Should -Not -BeNull
+        $param.ParameterType.Name | Should -Be 'SwitchParameter'
+    }
+}
