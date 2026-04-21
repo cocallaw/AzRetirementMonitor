@@ -24,11 +24,79 @@ function Invoke-AzPagedRequest {
         }
         else {
             Write-Verbose "Requesting page: $nextUri"
-            $response = Invoke-RestMethod `
-                -Uri $nextUri `
-                -Headers $Headers `
-                -Method Get `
-                -ErrorAction Stop
+            $response = $null
+            $retryCount = 0
+            $maxRetries = 3
+
+            while ($retryCount -le $maxRetries) {
+                try {
+                    $response = Invoke-RestMethod `
+                        -Uri $nextUri `
+                        -Headers $Headers `
+                        -Method Get `
+                        -ErrorAction Stop
+                    break
+                }
+                catch {
+                    $statusCode = $null
+                    $errorResponse = $_.Exception.Response
+                    if ($errorResponse) {
+                        $statusCode = [int]$errorResponse.StatusCode
+                    }
+
+                    $retryable = $statusCode -in @(429, 500, 502, 503, 504)
+                    if ($retryable -and $retryCount -lt $maxRetries) {
+                        $delay = $null
+
+                        # Extract Retry-After header safely across PS versions
+                        try {
+                            $retryAfterValue = $null
+                            if ($null -ne $errorResponse) {
+                                $responseHeaders = $errorResponse.Headers
+                                if ($null -ne $responseHeaders) {
+                                    if ($responseHeaders -is [System.Net.WebHeaderCollection]) {
+                                        $retryAfterValue = $responseHeaders.Get("Retry-After")
+                                    }
+                                    elseif ($responseHeaders -is [hashtable]) {
+                                        $retryAfterValue = $responseHeaders["Retry-After"]
+                                    }
+                                    elseif ($null -ne $responseHeaders.PSObject -and $responseHeaders.PSObject.Methods.Name -contains 'TryGetValues') {
+                                        $headerValues = $null
+                                        if ($responseHeaders.TryGetValues("Retry-After", [ref]$headerValues)) {
+                                            $retryAfterValue = $headerValues | Select-Object -First 1
+                                        }
+                                    }
+                                }
+                            }
+
+                            if ($retryAfterValue) {
+                                $retryAfterSeconds = 0
+                                $retryAfterDate = [System.DateTimeOffset]::MinValue
+                                if ([int]::TryParse($retryAfterValue, [ref]$retryAfterSeconds)) {
+                                    $delay = $retryAfterSeconds
+                                }
+                                elseif ([System.DateTimeOffset]::TryParse($retryAfterValue, [ref]$retryAfterDate)) {
+                                    $delay = [int][math]::Ceiling([math]::Max(0, ($retryAfterDate - [System.DateTimeOffset]::UtcNow).TotalSeconds))
+                                }
+                            }
+                        }
+                        catch {
+                            # If header extraction fails, fall through to exponential backoff
+                        }
+
+                        if ($null -eq $delay) {
+                            $delay = [int][math]::Pow(2, $retryCount)
+                        }
+                        Write-Verbose "Request failed with status $statusCode. Retrying in $delay seconds ($($retryCount + 1)/$maxRetries)..."
+                        Start-Sleep -Seconds $delay
+                        $retryCount++
+                    }
+                    else {
+                        Write-Error "Azure API request failed for ${nextUri}: $_"
+                        return $results.ToArray()
+                    }
+                }
+            }
 
             if ($response.value) {
                 $results.AddRange($response.value)
