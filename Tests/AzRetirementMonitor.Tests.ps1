@@ -375,19 +375,34 @@ Describe "Get-AzRetirementRecommendation Context Switching Logic" {
 
 Describe "Get-AzRetirementRecommendation Subcategory Filter" {
     BeforeAll {
-        # Extract the subcategory filter scriptblock from the function definition
         $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
     }
 
+    It "Should contain Add-Member caching of ExtendedPropertyObject in the filter" {
+        $functionDef | Should -Match 'Add-Member.*ExtendedPropertyObject'
+    }
+
+    It "Should contain type checks for string, hashtable, and pscustomobject" {
+        $functionDef | Should -Match 'ExtendedProperty -is \[string\]'
+        $functionDef | Should -Match 'ExtendedProperty -is \[hashtable\]'
+        $functionDef | Should -Match 'ExtendedProperty -is \[pscustomobject\]'
+    }
+
     It "Should handle ExtendedProperty as JSON string and cache parsed object" {
-        $rec = [PSCustomObject]@{
+        # Use a mock that returns a recommendation with JSON string ExtendedProperty
+        $mockRec = [PSCustomObject]@{
+            Name = 'test-rec'
             ExtendedProperty = '{"recommendationSubCategory":"ServiceUpgradeAndRetirement","retirementFeatureName":"Test"}'
         }
-        $result = @($rec) | Where-Object {
+        Mock Get-AzAdvisorRecommendation { return $mockRec } -ModuleName AzRetirementMonitor
+
+        # Invoke the filter logic as defined in the function
+        $result = @($mockRec) | Where-Object {
             if ($_.ExtendedProperty) {
                 $extProps = $null
                 if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
+                    catch { $extProps = $null }
                 }
                 elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
                     $extProps = $_.ExtendedProperty
@@ -404,14 +419,16 @@ Describe "Get-AzRetirementRecommendation Subcategory Filter" {
     }
 
     It "Should handle ExtendedProperty as hashtable" {
-        $rec = [PSCustomObject]@{
+        $mockRec = [PSCustomObject]@{
+            Name = 'test-rec'
             ExtendedProperty = @{ recommendationSubCategory = 'ServiceUpgradeAndRetirement'; retirementFeatureName = 'HashTest' }
         }
-        $result = @($rec) | Where-Object {
+        $result = @($mockRec) | Where-Object {
             if ($_.ExtendedProperty) {
                 $extProps = $null
                 if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
+                    catch { $extProps = $null }
                 }
                 elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
                     $extProps = $_.ExtendedProperty
@@ -427,14 +444,16 @@ Describe "Get-AzRetirementRecommendation Subcategory Filter" {
     }
 
     It "Should filter out non-matching subcategory" {
-        $rec = [PSCustomObject]@{
+        $mockRec = [PSCustomObject]@{
+            Name = 'test-rec'
             ExtendedProperty = '{"recommendationSubCategory":"SomeOtherCategory"}'
         }
-        $result = @($rec) | Where-Object {
+        $result = @($mockRec) | Where-Object {
             if ($_.ExtendedProperty) {
                 $extProps = $null
                 if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
+                    catch { $extProps = $null }
                 }
                 elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
                     $extProps = $_.ExtendedProperty
@@ -449,14 +468,16 @@ Describe "Get-AzRetirementRecommendation Subcategory Filter" {
     }
 
     It "Should gracefully handle invalid JSON without throwing" {
-        $rec = [PSCustomObject]@{
+        $mockRec = [PSCustomObject]@{
+            Name = 'test-rec'
             ExtendedProperty = 'not-valid-json{{'
         }
-        $result = @($rec) | Where-Object {
+        $result = @($mockRec) | Where-Object {
             if ($_.ExtendedProperty) {
                 $extProps = $null
                 if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
+                    catch { $extProps = $null }
                 }
                 elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
                     $extProps = $_.ExtendedProperty
@@ -471,14 +492,16 @@ Describe "Get-AzRetirementRecommendation Subcategory Filter" {
     }
 
     It "Should filter out items with null ExtendedProperty" {
-        $rec = [PSCustomObject]@{
+        $mockRec = [PSCustomObject]@{
+            Name = 'test-rec'
             ExtendedProperty = $null
         }
-        $result = @($rec) | Where-Object {
+        $result = @($mockRec) | Where-Object {
             if ($_.ExtendedProperty) {
                 $extProps = $null
                 if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
+                    catch { $extProps = $null }
                 }
                 elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
                     $extProps = $_.ExtendedProperty

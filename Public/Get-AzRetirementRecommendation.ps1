@@ -161,7 +161,8 @@ Gets recommendations using the REST API method
                     if ($_.ExtendedProperty) {
                         $extProps = $null
                         if ($_.ExtendedProperty -is [string]) {
-                            try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                            try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
+                            catch { $extProps = $null }
                         }
                         elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
                             $extProps = $_.ExtendedProperty
