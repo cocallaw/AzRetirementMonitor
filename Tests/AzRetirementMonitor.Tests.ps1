@@ -872,6 +872,101 @@ Describe "Invoke-AzPagedRequest NextLink Validation" {
     }
 }
 
+Describe "Invoke-AzPagedRequest Retry Logic" {
+    BeforeAll {
+        $module = Get-Module AzRetirementMonitor
+    }
+
+    It "Should retry on 429 throttling and succeed" {
+        $script:retryCallCount = 0
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = $null
+        }
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:retryCallCount++
+            if ($script:retryCallCount -eq 1) {
+                $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::TooManyRequests; Headers = $null }
+                $exception = New-Object System.Net.WebException "429 Too Many Requests"
+                $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
+                throw $exception
+            }
+            return $page1
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" }
+        }
+
+        $results.Count | Should -Be 1
+        $script:retryCallCount | Should -Be 2
+    }
+
+    It "Should return partial results after exhausting retries" {
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::InternalServerError; Headers = $null }
+            $exception = New-Object System.Net.WebException "500 Server Error"
+            $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
+            throw $exception
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" } -ErrorAction SilentlyContinue
+        }
+
+        $results.Count | Should -Be 0
+    }
+
+    It "Should not retry on non-retryable errors (e.g. 403)" {
+        $script:nonRetryCallCount = 0
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:nonRetryCallCount++
+            $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::Forbidden; Headers = $null }
+            $exception = New-Object System.Net.WebException "403 Forbidden"
+            $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
+            throw $exception
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" } -ErrorAction SilentlyContinue
+        }
+
+        $script:nonRetryCallCount | Should -Be 1
+    }
+
+    It "Should honor Retry-After header with delta-seconds value" {
+        $script:retryAfterCallCount = 0
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = $null
+        }
+
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:retryAfterCallCount++
+            if ($script:retryAfterCallCount -eq 1) {
+                $mockHeaders = @{ "Retry-After" = "5" }
+                $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::TooManyRequests; Headers = $mockHeaders }
+                $exception = New-Object System.Exception "429 Too Many Requests"
+                $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
+                throw $exception
+            }
+            return $page1
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" }
+        }
+
+        $results.Count | Should -Be 1
+        Should -Invoke Start-Sleep -ModuleName AzRetirementMonitor -ParameterFilter { $Seconds -eq 5 }
+        Remove-Variable -Name testRetryAfterHeaders -Scope Global -ErrorAction SilentlyContinue
+    }
+}
+
 Describe "Get-AzRetirementRecommendation -Stream Parameter" {
     It "Should have a Stream switch parameter" {
         $cmd = Get-Command Get-AzRetirementRecommendation
