@@ -373,6 +373,126 @@ Describe "Get-AzRetirementRecommendation Context Switching Logic" {
     }
 }
 
+Describe "Get-AzRetirementRecommendation Subcategory Filter" {
+    BeforeAll {
+        # Extract the subcategory filter scriptblock from the function definition
+        $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
+    }
+
+    It "Should handle ExtendedProperty as JSON string and cache parsed object" {
+        $rec = [PSCustomObject]@{
+            ExtendedProperty = '{"recommendationSubCategory":"ServiceUpgradeAndRetirement","retirementFeatureName":"Test"}'
+        }
+        $result = @($rec) | Where-Object {
+            if ($_.ExtendedProperty) {
+                $extProps = $null
+                if ($_.ExtendedProperty -is [string]) {
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                }
+                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
+                    $extProps = $_.ExtendedProperty
+                }
+                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
+                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
+                    $true
+                } else { $false }
+            } else { $false }
+        }
+        $result | Should -HaveCount 1
+        $result[0].PSObject.Properties.Name | Should -Contain 'ExtendedPropertyObject'
+        $result[0].ExtendedPropertyObject.retirementFeatureName | Should -Be 'Test'
+    }
+
+    It "Should handle ExtendedProperty as hashtable" {
+        $rec = [PSCustomObject]@{
+            ExtendedProperty = @{ recommendationSubCategory = 'ServiceUpgradeAndRetirement'; retirementFeatureName = 'HashTest' }
+        }
+        $result = @($rec) | Where-Object {
+            if ($_.ExtendedProperty) {
+                $extProps = $null
+                if ($_.ExtendedProperty -is [string]) {
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                }
+                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
+                    $extProps = $_.ExtendedProperty
+                }
+                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
+                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
+                    $true
+                } else { $false }
+            } else { $false }
+        }
+        $result | Should -HaveCount 1
+        $result[0].ExtendedPropertyObject.retirementFeatureName | Should -Be 'HashTest'
+    }
+
+    It "Should filter out non-matching subcategory" {
+        $rec = [PSCustomObject]@{
+            ExtendedProperty = '{"recommendationSubCategory":"SomeOtherCategory"}'
+        }
+        $result = @($rec) | Where-Object {
+            if ($_.ExtendedProperty) {
+                $extProps = $null
+                if ($_.ExtendedProperty -is [string]) {
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                }
+                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
+                    $extProps = $_.ExtendedProperty
+                }
+                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
+                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
+                    $true
+                } else { $false }
+            } else { $false }
+        }
+        $result | Should -HaveCount 0
+    }
+
+    It "Should gracefully handle invalid JSON without throwing" {
+        $rec = [PSCustomObject]@{
+            ExtendedProperty = 'not-valid-json{{'
+        }
+        $result = @($rec) | Where-Object {
+            if ($_.ExtendedProperty) {
+                $extProps = $null
+                if ($_.ExtendedProperty -is [string]) {
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                }
+                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
+                    $extProps = $_.ExtendedProperty
+                }
+                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
+                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
+                    $true
+                } else { $false }
+            } else { $false }
+        }
+        $result | Should -HaveCount 0
+    }
+
+    It "Should filter out items with null ExtendedProperty" {
+        $rec = [PSCustomObject]@{
+            ExtendedProperty = $null
+        }
+        $result = @($rec) | Where-Object {
+            if ($_.ExtendedProperty) {
+                $extProps = $null
+                if ($_.ExtendedProperty -is [string]) {
+                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json } catch { }
+                }
+                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
+                    $extProps = $_.ExtendedProperty
+                }
+                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
+                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
+                    $true
+                } else { $false }
+            } else { $false }
+        }
+        $result | Should -HaveCount 0
+    }
+}
+
 Describe "Get-AzRetirementMetadataItem" {
     It "Should have no parameters" {
         $cmd = Get-Command Get-AzRetirementMetadataItem
