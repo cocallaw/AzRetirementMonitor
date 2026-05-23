@@ -408,6 +408,54 @@ Describe "Export-AzRetirementReport" {
     }
 }
 
+Describe "Export-AzRetirementReport OutputPath Validation" {
+    It "Should reject OutputPath with path traversal sequences" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        { $testRec | Export-AzRetirementReport -OutputPath "../../etc/malicious.csv" -Format CSV -Confirm:$false } | Should -Throw "*Path traversal*"
+    }
+
+    It "Should reject OutputPath with trailing path traversal" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        { $testRec | Export-AzRetirementReport -OutputPath "./foo/../malicious.csv" -Format CSV -Confirm:$false } | Should -Throw "*Path traversal*"
+    }
+
+    It "Should reject OutputPath when parent directory does not exist" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        $missingParentDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+        $missingOutputPath = Join-Path $missingParentDir "report.csv"
+        { $testRec | Export-AzRetirementReport -OutputPath $missingOutputPath -Format CSV -Confirm:$false } | Should -Throw "*Directory does not exist*"
+    }
+
+    It "Should accept OutputPath in current directory" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        { $testRec | Export-AzRetirementReport -OutputPath "report.csv" -Format CSV -WhatIf -Confirm:$false } | Should -Not -Throw
+    }
+}
+
 Describe "Export-AzRetirementReport Transformation Logic" {
     BeforeAll {
         # Create a temporary directory for test outputs
