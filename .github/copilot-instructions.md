@@ -71,7 +71,7 @@ This module targets **both PowerShell Desktop 5.1 and PowerShell Core 7+**.
 - Tests use **Pester v5** with `BeforeAll` module imports.
 - Test file: `Tests/AzRetirementMonitor.Tests.ps1`
 - Mock all Azure API/module calls — tests must work without a live Azure connection.
-- Use `InModuleScope AzRetirementMonitor { }` when testing private/internal functions.
+- Access module-scoped internals via `& (Get-Module AzRetirementMonitor) { ... }` (not `InModuleScope`).
 - Run tests: `Invoke-Pester ./Tests/AzRetirementMonitor.Tests.ps1`
 
 ## CI/CD
@@ -92,4 +92,4 @@ This module targets **both PowerShell Desktop 5.1 and PowerShell Core 7+**.
 - **Dual retrieval modes**: Default uses Az.Advisor module; `-UseAPI` switch enables direct REST calls. Both return identical `[PSCustomObject]` output shapes.
 - **`SupportsShouldProcess`**: Used on destructive or file-writing operations (e.g., `Export-AzRetirementReport`).
 - **Pipeline support**: `Get-AzRetirementRecommendation` output pipes directly into `Export-AzRetirementReport`.
-- **No external dependencies at runtime** beyond Az.Advisor/Az.Accounts (for default mode) or Azure CLI (for API mode).
+- **No external dependencies at runtime** beyond Az.Advisor/Az.Accounts (for default mode) or Azure CLI / Az.Accounts (for API mode).
