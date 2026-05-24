@@ -378,141 +378,84 @@ Describe "Get-AzRetirementRecommendation Subcategory Filter" {
         $functionDef = (Get-Command Get-AzRetirementRecommendation).Definition
     }
 
-    It "Should contain Add-Member caching of ExtendedPropertyObject in the filter" {
-        $functionDef | Should -Match 'Add-Member.*ExtendedPropertyObject'
+    It "Should use Resolve-ExtendedProperty helper in the subcategory filter" {
+        $functionDef | Should -Match 'subcategoryFilter\s*=\s*\{[^}]*Resolve-ExtendedProperty'
     }
 
-    It "Should contain type checks for string, hashtable, and pscustomobject" {
-        $functionDef | Should -Match 'ExtendedProperty -is \[string\]'
-        $functionDef | Should -Match 'ExtendedProperty -is \[hashtable\]'
-        $functionDef | Should -Match 'ExtendedProperty -is \[pscustomobject\]'
+    It "Should use Resolve-ExtendedProperty helper in the output construction" {
+        # Verify the helper is also used outside the filter (in the foreach loop)
+        $functionDef | Should -Match 'Resolve-ExtendedProperty -Recommendation \$rec'
+    }
+}
+
+Describe "Resolve-ExtendedProperty" {
+    It "Should parse JSON string and cache as ExtendedPropertyObject" {
+        InModuleScope AzRetirementMonitor {
+            $rec = [PSCustomObject]@{
+                ExtendedProperty = '{"recommendationSubCategory":"ServiceUpgradeAndRetirement","retirementFeatureName":"Test"}'
+            }
+            $result = Resolve-ExtendedProperty -Recommendation $rec
+            $result | Should -Not -BeNullOrEmpty
+            $result.retirementFeatureName | Should -Be 'Test'
+            $rec.PSObject.Properties.Name | Should -Contain 'ExtendedPropertyObject'
+            $rec.ExtendedPropertyObject.retirementFeatureName | Should -Be 'Test'
+        }
     }
 
-    It "Should handle ExtendedProperty as JSON string and cache parsed object" {
-        # Use a mock that returns a recommendation with JSON string ExtendedProperty
-        $mockRec = [PSCustomObject]@{
-            Name = 'test-rec'
-            ExtendedProperty = '{"recommendationSubCategory":"ServiceUpgradeAndRetirement","retirementFeatureName":"Test"}'
+    It "Should handle hashtable input" {
+        InModuleScope AzRetirementMonitor {
+            $rec = [PSCustomObject]@{
+                ExtendedProperty = @{ recommendationSubCategory = 'ServiceUpgradeAndRetirement'; retirementFeatureName = 'HashTest' }
+            }
+            $result = Resolve-ExtendedProperty -Recommendation $rec
+            $result | Should -Not -BeNullOrEmpty
+            $result.retirementFeatureName | Should -Be 'HashTest'
+            $rec.PSObject.Properties.Name | Should -Contain 'ExtendedPropertyObject'
         }
-        Mock Get-AzAdvisorRecommendation { return $mockRec } -ModuleName AzRetirementMonitor
-
-        # Invoke the filter logic as defined in the function
-        $result = @($mockRec) | Where-Object {
-            if ($_.ExtendedProperty) {
-                $extProps = $null
-                if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
-                    catch { $extProps = $null }
-                }
-                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
-                    $extProps = $_.ExtendedProperty
-                }
-                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
-                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
-                    $true
-                } else { $false }
-            } else { $false }
-        }
-        $result | Should -HaveCount 1
-        $result[0].PSObject.Properties.Name | Should -Contain 'ExtendedPropertyObject'
-        $result[0].ExtendedPropertyObject.retirementFeatureName | Should -Be 'Test'
     }
 
-    It "Should handle ExtendedProperty as hashtable" {
-        $mockRec = [PSCustomObject]@{
-            Name = 'test-rec'
-            ExtendedProperty = @{ recommendationSubCategory = 'ServiceUpgradeAndRetirement'; retirementFeatureName = 'HashTest' }
+    It "Should handle PSCustomObject input" {
+        InModuleScope AzRetirementMonitor {
+            $rec = [PSCustomObject]@{
+                ExtendedProperty = [PSCustomObject]@{ recommendationSubCategory = 'ServiceUpgradeAndRetirement'; retirementFeatureName = 'ObjTest' }
+            }
+            $result = Resolve-ExtendedProperty -Recommendation $rec
+            $result | Should -Not -BeNullOrEmpty
+            $result.retirementFeatureName | Should -Be 'ObjTest'
         }
-        $result = @($mockRec) | Where-Object {
-            if ($_.ExtendedProperty) {
-                $extProps = $null
-                if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
-                    catch { $extProps = $null }
-                }
-                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
-                    $extProps = $_.ExtendedProperty
-                }
-                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
-                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
-                    $true
-                } else { $false }
-            } else { $false }
-        }
-        $result | Should -HaveCount 1
-        $result[0].ExtendedPropertyObject.retirementFeatureName | Should -Be 'HashTest'
     }
 
-    It "Should filter out non-matching subcategory" {
-        $mockRec = [PSCustomObject]@{
-            Name = 'test-rec'
-            ExtendedProperty = '{"recommendationSubCategory":"SomeOtherCategory"}'
+    It "Should return cached value on second call" {
+        InModuleScope AzRetirementMonitor {
+            $rec = [PSCustomObject]@{
+                ExtendedProperty = '{"recommendationSubCategory":"ServiceUpgradeAndRetirement","retirementFeatureName":"Cached"}'
+            }
+            $first = Resolve-ExtendedProperty -Recommendation $rec
+            $second = Resolve-ExtendedProperty -Recommendation $rec
+            $second.retirementFeatureName | Should -Be 'Cached'
+            [object]::ReferenceEquals($first, $second) | Should -BeTrue
         }
-        $result = @($mockRec) | Where-Object {
-            if ($_.ExtendedProperty) {
-                $extProps = $null
-                if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
-                    catch { $extProps = $null }
-                }
-                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
-                    $extProps = $_.ExtendedProperty
-                }
-                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
-                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
-                    $true
-                } else { $false }
-            } else { $false }
-        }
-        $result | Should -HaveCount 0
     }
 
-    It "Should gracefully handle invalid JSON without throwing" {
-        $mockRec = [PSCustomObject]@{
-            Name = 'test-rec'
-            ExtendedProperty = 'not-valid-json{{'
+    It "Should return null for invalid JSON without throwing" {
+        InModuleScope AzRetirementMonitor {
+            $rec = [PSCustomObject]@{
+                ExtendedProperty = 'not-valid-json{{'
+            }
+            { Resolve-ExtendedProperty -Recommendation $rec } | Should -Not -Throw
+            $result = Resolve-ExtendedProperty -Recommendation $rec
+            $result | Should -BeNullOrEmpty
         }
-        $result = @($mockRec) | Where-Object {
-            if ($_.ExtendedProperty) {
-                $extProps = $null
-                if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
-                    catch { $extProps = $null }
-                }
-                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
-                    $extProps = $_.ExtendedProperty
-                }
-                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
-                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
-                    $true
-                } else { $false }
-            } else { $false }
-        }
-        $result | Should -HaveCount 0
     }
 
-    It "Should filter out items with null ExtendedProperty" {
-        $mockRec = [PSCustomObject]@{
-            Name = 'test-rec'
-            ExtendedProperty = $null
+    It "Should return null for null ExtendedProperty" {
+        InModuleScope AzRetirementMonitor {
+            $rec = [PSCustomObject]@{
+                ExtendedProperty = $null
+            }
+            $result = Resolve-ExtendedProperty -Recommendation $rec
+            $result | Should -BeNullOrEmpty
         }
-        $result = @($mockRec) | Where-Object {
-            if ($_.ExtendedProperty) {
-                $extProps = $null
-                if ($_.ExtendedProperty -is [string]) {
-                    try { $extProps = $_.ExtendedProperty | ConvertFrom-Json }
-                    catch { $extProps = $null }
-                }
-                elseif ($_.ExtendedProperty -is [hashtable] -or $_.ExtendedProperty -is [pscustomobject]) {
-                    $extProps = $_.ExtendedProperty
-                }
-                if ($extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement') {
-                    $_ | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
-                    $true
-                } else { $false }
-            } else { $false }
-        }
-        $result | Should -HaveCount 0
     }
 }
 
