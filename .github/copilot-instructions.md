@@ -55,8 +55,8 @@ This module targets **both PowerShell Desktop 5.1 and PowerShell Core 7+**.
 
 ### Security Practices
 - Sanitize user-supplied data before outputting to CSV (formula injection) or HTML (XSS).
-- Validate URLs with scheme checks (`https://` only) before rendering links.
-- Validate pagination `nextLink` URIs against an allowlist of trusted hosts.
+- Validate URLs with scheme checks (`http://` or `https://`) before rendering links in HTML output to prevent protocol injection (e.g., `javascript:`).
+- Validate pagination `nextLink` URIs with **`https://` only** against an allowlist of trusted hosts (`management.azure.com`).
 - Access tokens are module-scoped (`$script:AccessToken`) and cleared on disconnect.
 - The module is strictly **read-only** — never add write operations against Azure resources.
 
