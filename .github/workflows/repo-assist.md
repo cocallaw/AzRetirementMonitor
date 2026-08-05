@@ -23,40 +23,48 @@ safe-outputs:
     max: 5
     target: "*"
     hide-older-comments: true
-
   add-labels:
-    allowed:
-      - bug
-      - enhancement
-      - documentation
-      - question
-      - help wanted
-      - good first issue
-      - duplicate
-      - wontfix
-      - needs triage
-      - needs investigation
-      - performance
-      - security
-    max: 20
-    target: "*"
-
+      allowed:
+        - bug
+        - ci
+        - documentation
+        - duplicate
+        - enhancement
+        - good first issue
+        - help wanted
+        - invalid
+        - performance
+        - "priority: high"
+        - "priority: medium"
+        - "priority: low"
+        - question
+        - security
+        - wontfix
+        - needs triage
+        - needs investigation
+      max: 20
+      target: "*"
   remove-labels:
-    allowed:
-      - bug
-      - enhancement
-      - documentation
-      - question
-      - help wanted
-      - good first issue
-      - duplicate
-      - wontfix
-      - needs triage
-      - needs investigation
-      - performance
-      - security
-    max: 5
-    target: "*"
+      allowed:
+        - bug
+        - ci
+        - documentation
+        - duplicate
+        - enhancement
+        - good first issue
+        - help wanted
+        - invalid
+        - performance
+        - "priority: high"
+        - "priority: medium"
+        - "priority: low"
+        - question
+        - security
+        - wontfix
+        - needs triage
+        - needs investigation
+      max: 5
+      target: "*"
 
 tools:
   github:
@@ -115,17 +123,29 @@ Use `enhancement` for proposed functionality.
 
 Use `documentation` for documentation problems.
 
-Use `question` when the reporter is requesting information rather than reporting a defect.
+Use `question` for requests for information.
+
+Use `ci` for issues concerning GitHub Actions, build validation, or deployment automation.
+
+Use `performance` for measurable performance concerns.
+
+Use `security` for security-related issues. Do not discuss vulnerability details publicly; direct reporters to `SECURITY.md`.
+
+Use `priority: high` only when the issue has significant impact or urgency.
+
+Use `priority: medium` for actionable issues that should be addressed in the near term.
+
+Use `priority: low` for useful but non-urgent work.
+
+Use `invalid` only when the issue does not contain a valid bug, feature request, question, or actionable report.
+
+Use `duplicate` only when an existing issue clearly covers the same problem. Do not close the issue automatically.
 
 Use `needs triage` when the issue cannot yet be classified confidently.
 
 Use `needs investigation` when additional technical analysis is required.
 
-Use `security` only when the issue appears security-related. Do not discuss vulnerability details publicly. Direct the reporter to the private security advisory process in `SECURITY.md`.
-
-Use `good first issue` or `help wanted` only when the issue is sufficiently clear and actionable.
-
-Do not apply labels merely to increase classification confidence. When uncertain, use `needs triage`.
+Do not remove priority labels unless there is clear evidence that the priority is incorrect.
 
 ## Commenting rules
 
@@ -157,7 +177,6 @@ For onboarding issues, welcome the contributor and refer them to `CONTRIBUTING.m
 Do not comment when the issue already has a recent helpful Repo Assist response unless a human has added new information.
 
 ## Memory
-s
 Use repository memory to avoid duplicate comments and to track:
 
 - Issues already reviewed
