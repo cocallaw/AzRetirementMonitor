@@ -16,7 +16,7 @@ https://learn.microsoft.com/rest/api/advisor/metadata
     [CmdletBinding()]
     param()
 
-    if (-not $script:AccessToken) {
+    if (-not $script:AccessTokenSecureString) {
         throw "Not authenticated. Run Connect-AzRetirementMonitor -UsingAPI first. Note: This function requires API access as Az.Advisor module does not expose metadata cmdlets."
     }
 
@@ -24,6 +24,7 @@ https://learn.microsoft.com/rest/api/advisor/metadata
         throw "Access token has expired. Run Connect-AzRetirementMonitor -UsingAPI again."
     }
 
+    $credential = New-Object System.Management.Automation.PSCredential("token", $script:AccessTokenSecureString)
     $headers = @{
         Authorization  = "Bearer $script:AccessToken"
         "Content-Type" = "application/json"

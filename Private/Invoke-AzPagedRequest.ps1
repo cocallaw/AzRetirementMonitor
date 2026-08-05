@@ -11,6 +11,11 @@ function Invoke-AzPagedRequest {
         [int]$PageLimit = 100
     )
 
+    if ($script:AccessTokenSecureString) {
+        $credential = New-Object System.Management.Automation.PSCredential("token", $script:AccessTokenSecureString)
+        $Headers.Authorization = "Bearer $($credential.GetNetworkCredential().Password)"
+    }
+
     $results = [System.Collections.Generic.List[object]]::new()
     $allowedHosts = @("management.azure.com")
     $nextUri = $Uri

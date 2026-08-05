@@ -22,13 +22,19 @@ function Test-AzRetirementMonitorToken {
     [OutputType([bool])]
     param()
 
-    if (-not $script:AccessToken) {
+    if (-not $script:AccessTokenSecureString) {
         return $false
     }
 
     try {
+        $credential = New-Object System.Management.Automation.PSCredential(
+            "token",
+            $script:AccessTokenSecureString
+        )
+        $accessToken = $credential.GetNetworkCredential().Password
+
         # JWT tokens have 3 parts separated by dots: header.payload.signature
-        $tokenParts = $script:AccessToken -split '\.'
+        $tokenParts = $accessToken -split '\.'
         
         if ($tokenParts.Count -ne 3) {
             Write-Verbose "Token format is invalid"
