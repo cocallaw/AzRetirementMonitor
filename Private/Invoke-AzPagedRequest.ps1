@@ -13,6 +13,10 @@ function Invoke-AzPagedRequest {
 
     if ($script:AccessTokenSecureString) {
         $credential = New-Object System.Management.Automation.PSCredential("token", $script:AccessTokenSecureString)
+        $accessToken = $credential.GetNetworkCredential().Password
+        if ([string]::IsNullOrEmpty($accessToken)) {
+            throw "Stored access token is empty."
+        }
         $Headers.Authorization = "Bearer $($credential.GetNetworkCredential().Password)"
     }
 
@@ -87,6 +91,7 @@ function Invoke-AzPagedRequest {
                         }
                         catch {
                             # If header extraction fails, fall through to exponential backoff
+                            Write-Verbose "Retry-After header could not be parsed; using exponential backoff."
                         }
 
                         if ($null -eq $delay) {

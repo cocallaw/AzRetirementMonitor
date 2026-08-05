@@ -58,6 +58,10 @@ Gets recommendations using the REST API method
             }
 
             $credential = New-Object System.Management.Automation.PSCredential("token", $script:AccessTokenSecureString)
+            $accessToken = $credential.GetNetworkCredential().Password
+            if ([string]::IsNullOrEmpty($accessToken)) {
+                throw "Stored access token is empty."
+            }
             $headers = @{
                 Authorization  = "Bearer $script:AccessToken"
                 "Content-Type" = "application/json"

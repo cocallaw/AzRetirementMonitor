@@ -6,6 +6,10 @@ Describe "Module Import" {
     It "Should load the module" {
         Get-Module AzRetirementMonitor | Should -Not -BeNull
     }
+
+    It "Should declare the v3.0.0 release version" {
+        (Get-Module AzRetirementMonitor).Version | Should -Be ([version]'3.0.0')
+    }
     
     It "Should export 5 functions" {
         $commands = Get-Command -Module AzRetirementMonitor
@@ -427,6 +431,13 @@ Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
 
         $result.Count | Should -Be 1
         $result[0].Description | Should -Be "Materialized feature"
+    }
+
+    It "Should emit recommendations immediately when Stream is specified" {
+        $result = @(Get-AzRetirementRecommendation -Stream)
+
+        $result.Count | Should -Be 1
+        $result[0].RecommendationId | Should -Be "recommendation-1"
     }
 }
 
