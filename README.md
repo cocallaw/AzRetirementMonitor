@@ -208,7 +208,7 @@ Connect-AzRetirementMonitor -UsingAPI -UseAzPowerShell
 
 Clears the access token stored by the module. This does not affect your Azure CLI or Az.Accounts session - you remain logged in to Azure.
 
-The token reference is cleared from module memory when you disconnect. Note that PowerShell module scope is not a security boundary — other code running in the same session can access module-scoped variables. Use `Disconnect-AzRetirementMonitor` when done, and avoid running untrusted scripts in the same session.
+The `SecureString` token reference is cleared from module memory when you disconnect. Note that PowerShell module scope is not a security boundary — other code running in the same session can access the reference and a malicious same-session process may decrypt it. Use `Disconnect-AzRetirementMonitor` when done, and avoid running untrusted scripts in the same session.
 
 **Only relevant when using API mode.**
 
@@ -370,9 +370,9 @@ The API method uses a **read-only, scoped token** approach to ensure security an
    - **Az.Accounts**: Uses `Get-AzAccessToken` to request a token from your connected context
    - The module does **not** prompt for credentials or re-authenticate you
 
-2. **Token Storage**: The token is stored in a **module-scoped variable** (`$script:AccessToken`):
-   - Only accessible within the AzRetirementMonitor module
-   - Not accessible to other PowerShell modules or sessions
+2. **Token Storage**: The token is stored as a **`SecureString` in module scope** (`$script:AccessTokenSecureString`):
+   - Plaintext is not retained in the module-scoped variable
+   - Plaintext exists only transiently while preparing REST request headers
    - Automatically cleared when the module is unloaded
    - Can be manually cleared with `Disconnect-AzRetirementMonitor`
 

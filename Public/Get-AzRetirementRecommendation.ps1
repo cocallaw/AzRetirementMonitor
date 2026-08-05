@@ -49,7 +49,7 @@ Gets recommendations using the REST API method
 
         if ($UseAPI) {
             # API mode - requires authentication via Connect-AzRetirementMonitor
-            if (-not $script:AccessToken) {
+            if (-not $script:AccessTokenSecureString) {
                 throw "Not authenticated. Run Connect-AzRetirementMonitor -UsingAPI first."
             }
 
@@ -57,6 +57,7 @@ Gets recommendations using the REST API method
                 throw "Access token has expired. Run Connect-AzRetirementMonitor -UsingAPI again."
             }
 
+            $credential = New-Object System.Management.Automation.PSCredential("token", $script:AccessTokenSecureString)
             $headers = @{
                 Authorization  = "Bearer $script:AccessToken"
                 "Content-Type" = "application/json"

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - NextLink origin validation in `Invoke-AzPagedRequest` to prevent token forwarding to untrusted hosts (#24)
 
 ### Changed
+- API access tokens are retained as `SecureString` values instead of plaintext module-scoped strings; plaintext is created only while preparing REST request headers (#25)
 - `Export-AzRetirementReport` uses `List[object]` instead of array concatenation for O(1) appends (#29)
 - ExtendedProperty JSON is now parsed once and cached during subcategory filtering (#28)
 - README and help text accurately describe token clearing behavior (#25, #41)

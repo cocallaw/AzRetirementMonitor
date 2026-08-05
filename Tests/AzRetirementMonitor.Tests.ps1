@@ -75,7 +75,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
     BeforeEach {
         # Clear the token before each test
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
 
         # Common mocks for Az.Accounts and Azure context used across tests
         Mock -ModuleName AzRetirementMonitor Get-Module -ParameterFilter { $Name -eq 'Az.Accounts' -and $ListAvailable } {
@@ -95,7 +95,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
     }
     
     Context "Az.Accounts 5.0+ with SecureString Token" {
-        It "Should convert SecureString token to plain text" {
+        It "Should retain SecureString token without plaintext module storage" {
             # Create a SecureString token to simulate Az.Accounts 5.0+ behavior
             $secureToken = ConvertTo-SecureString -String $script:TestToken -AsPlainText -Force
             
@@ -112,16 +112,15 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             
             # Verify the token was set correctly in module scope
             $module = Get-Module AzRetirementMonitor
-            $storedToken = & $module { $script:AccessToken }
+            $storedToken = & $module { $script:AccessTokenSecureString }
             
             # The stored token should be the plain text version
-            $storedToken | Should -Be $script:TestToken
-            $storedToken | Should -BeOfType [string]
+            $storedToken | Should -BeOfType [System.Security.SecureString]
         }
     }
     
     Context "Older Az.Accounts with Plain Text Token" {
-        It "Should use plain text token directly" {
+        It "Should convert legacy plain text token into SecureString storage" {
             # Mock Get-AzAccessToken to return a token object with plain text Token property
             Mock -ModuleName AzRetirementMonitor Get-AzAccessToken {
                 return [PSCustomObject]@{
@@ -135,11 +134,10 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             
             # Verify the token was set correctly in module scope
             $module = Get-Module AzRetirementMonitor
-            $storedToken = & $module { $script:AccessToken }
+            $storedToken = & $module { $script:AccessTokenSecureString }
             
             # The stored token should be the plain text version
-            $storedToken | Should -Be $script:TestToken
-            $storedToken | Should -BeOfType [string]
+            $storedToken | Should -BeOfType [System.Security.SecureString]
         }
     }
 }
@@ -165,7 +163,7 @@ Describe "Connect-AzRetirementMonitor Token Validation" {
 
     BeforeEach {
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
     }
 
     Context "Azure CLI path returns empty token" {
@@ -180,7 +178,7 @@ Describe "Connect-AzRetirementMonitor Token Validation" {
             $connectError[0].Exception.Message | Should -BeLike "*Failed to acquire access token*"
 
             $module = Get-Module AzRetirementMonitor
-            $storedToken = & $module { $script:AccessToken }
+            $storedToken = & $module { $script:AccessTokenSecureString }
             $storedToken | Should -BeNullOrEmpty
         }
     }
@@ -206,7 +204,7 @@ Describe "Connect-AzRetirementMonitor Token Validation" {
             $connectError[0].Exception.Message | Should -BeLike "*Failed to acquire access token*"
 
             $module = Get-Module AzRetirementMonitor
-            $storedToken = & $module { $script:AccessToken }
+            $storedToken = & $module { $script:AccessTokenSecureString }
             $storedToken | Should -BeNullOrEmpty
         }
     }
@@ -216,30 +214,30 @@ Describe "Disconnect-AzRetirementMonitor" {
     BeforeEach {
         # Clear the token before each test
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
     }
     
     It "Should clear the access token when connected" {
         # Set up a token
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = "test-token-value" }
+        & $module { $script:AccessTokenSecureString = ConvertTo-SecureString "test-token-value" -AsPlainText -Force }
         
         # Verify token is set
-        $tokenBefore = & $module { $script:AccessToken }
-        $tokenBefore | Should -Be "test-token-value"
+        $tokenBefore = & $module { $script:AccessTokenSecureString }
+        $tokenBefore | Should -BeOfType [System.Security.SecureString]
         
         # Disconnect
         Disconnect-AzRetirementMonitor
         
         # Verify token is cleared
-        $tokenAfter = & $module { $script:AccessToken }
+        $tokenAfter = & $module { $script:AccessTokenSecureString }
         $tokenAfter | Should -BeNullOrEmpty
     }
     
     It "Should handle disconnecting when not connected" {
         # Ensure no token is set
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
         
         # Should not throw
         { Disconnect-AzRetirementMonitor } | Should -Not -Throw
@@ -643,7 +641,7 @@ Describe "Token Expiration Validation" {
     BeforeEach {
         # Clear the token without reimporting the entire module
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
     }
     
     It "Get-AzRetirementMetadataItem should throw when not authenticated" {
@@ -661,7 +659,7 @@ Describe "Token Expiration Validation" {
         
         # Access the module's script scope to set the token
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $expiredToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $expiredToken
         
         { Get-AzRetirementMetadataItem -ErrorAction Stop } | Should -Throw "*expired*"
     }
@@ -673,7 +671,7 @@ Describe "Token Expiration Validation" {
         
         # Access the module's script scope to set the token
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $expiredToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $expiredToken
         
         { Get-AzRetirementRecommendation -UseAPI -ErrorAction Stop } | Should -Throw "*expired*"
     }
@@ -685,7 +683,7 @@ Describe "Token Expiration Validation" {
         
         # Access the module's script scope to set the token and test it
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $validToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $validToken
         
         # Call the private Test function to verify the token is valid
         $testResult = & $module { Test-AzRetirementMonitorToken }
@@ -697,7 +695,7 @@ Describe "Token Expiration Validation" {
         $malformedToken = "header.payload"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $malformedToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $malformedToken
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -711,7 +709,7 @@ Describe "Token Expiration Validation" {
         $malformedToken = "$header.$invalidPayload.$signature"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $malformedToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $malformedToken
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -731,7 +729,7 @@ Describe "Token Expiration Validation" {
         $tokenNoExp = "$header.$payload.$signature"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $tokenNoExp
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $tokenNoExp
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -770,14 +768,14 @@ Describe "Token Audience Validation" {
     BeforeEach {
         # Clear the token before each test
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
     }
     
     It "Should accept token with https://management.azure.com audience" {
         $token = New-TestTokenWithAudience -Audience "https://management.azure.com"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $true
@@ -787,7 +785,7 @@ Describe "Token Audience Validation" {
         $token = New-TestTokenWithAudience -Audience "https://management.azure.com/"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $true
@@ -798,7 +796,7 @@ Describe "Token Audience Validation" {
         $token = New-TestTokenWithAudience -Audience "https://management.core.windows.net"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $true
@@ -808,7 +806,7 @@ Describe "Token Audience Validation" {
         $token = New-TestTokenWithAudience -Audience "https://graph.microsoft.com"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -818,7 +816,7 @@ Describe "Token Audience Validation" {
         $token = New-TestTokenWithAudience -Audience "https://example.com"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -838,7 +836,7 @@ Describe "Token Audience Validation" {
         $tokenNoAud = "$header.$payload.$signature"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $tokenNoAud
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $tokenNoAud
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
