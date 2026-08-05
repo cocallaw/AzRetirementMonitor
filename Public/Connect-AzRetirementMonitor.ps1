@@ -1,7 +1,7 @@
 function Connect-AzRetirementMonitor {
 <#
 .SYNOPSIS
-Authenticates to Azure and stores an access token for REST API access
+Authenticates to Azure and securely stores an access token for REST API access
 .DESCRIPTION
 ⚠️  IMPORTANT: This command is ONLY needed when using Get-AzRetirementRecommendation with the -UseAPI switch.
 
@@ -20,8 +20,10 @@ The token obtained is used exclusively for:
 
 Required RBAC permissions: Reader role at subscription or resource group scope
 
-The token is stored in a module-scoped variable for the duration of the PowerShell session
-and is validated for proper audience (https://management.azure.com) before use.
+The token is stored as a SecureString in module scope for the duration of the PowerShell
+session and is validated for proper audience (https://management.azure.com) before use.
+Plaintext is created only transiently while an API request is prepared. Run
+Disconnect-AzRetirementMonitor when finished to clear the token reference.
 .PARAMETER UsingAPI
 Required switch to confirm you intend to use API-based access. This prevents accidentally 
 connecting when using the default Az.Advisor module method.
@@ -56,7 +58,7 @@ None. Displays a success message when authentication completes.
 
     try {
         # Clear any previously stored token so a failure never leaves a stale token in scope
-        $script:AccessToken = $null
+        $script:AccessTokenSecureString = $null
 
         if ($UseAzPowerShell) {
             if (-not (Get-Module -ListAvailable -Name Az.Accounts)) {
@@ -72,21 +74,20 @@ None. Displays a success message when authentication completes.
             Write-Verbose "Requesting token scoped to https://management.azure.com for read-only Azure Advisor access"
             $token = Get-AzAccessToken -ResourceUrl "https://management.azure.com"
             
-            # Starting with Az.Accounts 5.0.0, the Token property is a SecureString
-            # We need to convert it to plain text for use in Authorization headers
-            # This conversion is necessary because REST API calls require the token as a string
-            if ($token.Token -is [System.Security.SecureString]) {
-                # Use PSCredential to convert SecureString to plain text
-                $credential = New-Object System.Management.Automation.PSCredential("token", $token.Token)
-                $script:AccessToken = $credential.GetNetworkCredential().Password
+            # Keep the token encrypted in module scope; REST headers are assembled per request.
+            if (-not $token.Token) {
+                $script:AccessTokenSecureString = $null
+            }
+            elseif ($token.Token -is [System.Security.SecureString]) {
+                $script:AccessTokenSecureString = $token.Token
             }
             else {
-                # Backwards compatibility for older Az.Accounts versions that return plain text
-                $script:AccessToken = $token.Token
+                # Backwards compatibility for older Az.Accounts versions that return plain text.
+                $script:AccessTokenSecureString = ConvertTo-SecureString -String $token.Token -AsPlainText -Force
             }
 
-            if ([string]::IsNullOrWhiteSpace($script:AccessToken)) {
-                $script:AccessToken = $null
+            if (-not $script:AccessTokenSecureString) {
+                $script:AccessTokenSecureString = $null
                 throw "Failed to acquire access token from Az.Accounts. Ensure you are connected with 'Connect-AzAccount'."
             }
         }
@@ -97,15 +98,17 @@ None. Displays a success message when authentication completes.
             }
             Write-Verbose "Using Azure CLI for authentication"
             Write-Verbose "Requesting token scoped to https://management.azure.com for read-only Azure Advisor access"
-            $script:AccessToken = & az account get-access-token `
+            $plainTextToken = & az account get-access-token `
                 --resource https://management.azure.com `
                 --query accessToken `
                 --output tsv
 
-            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($script:AccessToken)) {
-                $script:AccessToken = $null
+            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($plainTextToken)) {
+                $script:AccessTokenSecureString = $null
                 throw "Failed to acquire access token from Azure CLI. Ensure you are logged in with 'az login' and have access to the target subscription."
             }
+            $script:AccessTokenSecureString = ConvertTo-SecureString -String ($plainTextToken.Trim()) -AsPlainText -Force
+            $plainTextToken = $null
         }
 
         Write-Host "Authenticated to Azure successfully for API access"

@@ -1,4 +1,4 @@
-# AzRetirementMonitor v2.0 - Quick Start Guide
+# AzRetirementMonitor v3.0 - Quick Start Guide
 
 **Compatible with PowerShell 5.1+ (Desktop and Core)**
 
@@ -37,7 +37,7 @@ Get-AzRetirementRecommendation -UseAPI | Export-AzRetirementReport -OutputPath "
 Disconnect-AzRetirementMonitor
 ```
 
-## What Changed in v2.0?
+## What Changed in v3.0?
 
 ### ✅ Default Method (NEW)
 
@@ -51,6 +51,12 @@ Disconnect-AzRetirementMonitor
 - Uses **REST API** directly
 - Requires `Connect-AzRetirementMonitor -UsingAPI`
 - Use `-UseAPI` switch on `Get-AzRetirementRecommendation`
+
+### 🚀 Streaming and resilience improvements
+
+- Use `-Stream` to emit recommendations as they are retrieved without buffering the full result set.
+- REST API requests retry transient throttling and server errors with exponential backoff.
+- Pagination links are restricted to HTTPS Azure Resource Manager endpoints.
 
 ## Common Commands
 

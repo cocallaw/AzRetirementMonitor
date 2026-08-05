@@ -6,6 +6,10 @@ Describe "Module Import" {
     It "Should load the module" {
         Get-Module AzRetirementMonitor | Should -Not -BeNull
     }
+
+    It "Should declare the v3.0.0 release version" {
+        (Get-Module AzRetirementMonitor).Version | Should -Be ([version]'3.0.0')
+    }
     
     It "Should export 5 functions" {
         $commands = Get-Command -Module AzRetirementMonitor
@@ -75,7 +79,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
     BeforeEach {
         # Clear the token before each test
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
 
         # Common mocks for Az.Accounts and Azure context used across tests
         Mock -ModuleName AzRetirementMonitor Get-Module -ParameterFilter { $Name -eq 'Az.Accounts' -and $ListAvailable } {
@@ -95,7 +99,7 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
     }
     
     Context "Az.Accounts 5.0+ with SecureString Token" {
-        It "Should convert SecureString token to plain text" {
+        It "Should retain SecureString token without plaintext module storage" {
             # Create a SecureString token to simulate Az.Accounts 5.0+ behavior
             $secureToken = ConvertTo-SecureString -String $script:TestToken -AsPlainText -Force
             
@@ -112,16 +116,15 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             
             # Verify the token was set correctly in module scope
             $module = Get-Module AzRetirementMonitor
-            $storedToken = & $module { $script:AccessToken }
+            $storedToken = & $module { $script:AccessTokenSecureString }
             
             # The stored token should be the plain text version
-            $storedToken | Should -Be $script:TestToken
-            $storedToken | Should -BeOfType [string]
+            $storedToken | Should -BeOfType [System.Security.SecureString]
         }
     }
     
     Context "Older Az.Accounts with Plain Text Token" {
-        It "Should use plain text token directly" {
+        It "Should convert legacy plain text token into SecureString storage" {
             # Mock Get-AzAccessToken to return a token object with plain text Token property
             Mock -ModuleName AzRetirementMonitor Get-AzAccessToken {
                 return [PSCustomObject]@{
@@ -135,11 +138,10 @@ Describe "Connect-AzRetirementMonitor SecureString Handling" {
             
             # Verify the token was set correctly in module scope
             $module = Get-Module AzRetirementMonitor
-            $storedToken = & $module { $script:AccessToken }
+            $storedToken = & $module { $script:AccessTokenSecureString }
             
             # The stored token should be the plain text version
-            $storedToken | Should -Be $script:TestToken
-            $storedToken | Should -BeOfType [string]
+            $storedToken | Should -BeOfType [System.Security.SecureString]
         }
     }
 }
@@ -165,7 +167,7 @@ Describe "Connect-AzRetirementMonitor Token Validation" {
 
     BeforeEach {
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
     }
 
     Context "Azure CLI path returns empty token" {
@@ -180,7 +182,7 @@ Describe "Connect-AzRetirementMonitor Token Validation" {
             $connectError[0].Exception.Message | Should -BeLike "*Failed to acquire access token*"
 
             $module = Get-Module AzRetirementMonitor
-            $storedToken = & $module { $script:AccessToken }
+            $storedToken = & $module { $script:AccessTokenSecureString }
             $storedToken | Should -BeNullOrEmpty
         }
     }
@@ -206,7 +208,7 @@ Describe "Connect-AzRetirementMonitor Token Validation" {
             $connectError[0].Exception.Message | Should -BeLike "*Failed to acquire access token*"
 
             $module = Get-Module AzRetirementMonitor
-            $storedToken = & $module { $script:AccessToken }
+            $storedToken = & $module { $script:AccessTokenSecureString }
             $storedToken | Should -BeNullOrEmpty
         }
     }
@@ -216,30 +218,30 @@ Describe "Disconnect-AzRetirementMonitor" {
     BeforeEach {
         # Clear the token before each test
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
     }
     
     It "Should clear the access token when connected" {
         # Set up a token
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = "test-token-value" }
+        & $module { $script:AccessTokenSecureString = ConvertTo-SecureString "test-token-value" -AsPlainText -Force }
         
         # Verify token is set
-        $tokenBefore = & $module { $script:AccessToken }
-        $tokenBefore | Should -Be "test-token-value"
+        $tokenBefore = & $module { $script:AccessTokenSecureString }
+        $tokenBefore | Should -BeOfType [System.Security.SecureString]
         
         # Disconnect
         Disconnect-AzRetirementMonitor
         
         # Verify token is cleared
-        $tokenAfter = & $module { $script:AccessToken }
+        $tokenAfter = & $module { $script:AccessTokenSecureString }
         $tokenAfter | Should -BeNullOrEmpty
     }
     
     It "Should handle disconnecting when not connected" {
         # Ensure no token is set
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
         
         # Should not throw
         { Disconnect-AzRetirementMonitor } | Should -Not -Throw
@@ -373,6 +375,72 @@ Describe "Get-AzRetirementRecommendation Context Switching Logic" {
     }
 }
 
+Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
+    BeforeEach {
+        Mock -ModuleName AzRetirementMonitor Test-AzAdvisorSession { $true }
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            [PSCustomObject]@{
+                ExtendedProperty = '{"recommendationSubCategory":"ServiceUpgradeAndRetirement","retirementFeatureName":"Test feature"}'
+                ShortDescriptionProblem = "Service retirement"
+                ShortDescriptionSolution = "Upgrade the service"
+                ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+                Category = "HighAvailability"
+                Impact = "High"
+                LastUpdated = "2026-01-01"
+                Name = "recommendation-1"
+                LearnMoreLink = "https://learn.microsoft.com"
+            }
+        }
+    }
+
+    It "Should parse string ExtendedProperty once and reuse the cached object" {
+        Mock -ModuleName AzRetirementMonitor ConvertFrom-Json {
+            [PSCustomObject]@{
+                recommendationSubCategory = "ServiceUpgradeAndRetirement"
+                retirementFeatureName = "Test feature"
+            }
+        }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        Should -Invoke -ModuleName AzRetirementMonitor ConvertFrom-Json -Times 1 -Exactly
+        $result.Count | Should -Be 1
+        $result[0].Description | Should -Be "Test feature"
+    }
+
+    It "Should reuse an already-materialized ExtendedProperty without JSON parsing" {
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            [PSCustomObject]@{
+                ExtendedProperty = [PSCustomObject]@{
+                    recommendationSubCategory = "ServiceUpgradeAndRetirement"
+                    retirementFeatureName = "Materialized feature"
+                }
+                ShortDescriptionProblem = "Service retirement"
+                ShortDescriptionSolution = "Upgrade the service"
+                ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+                Category = "HighAvailability"
+                Impact = "High"
+                LastUpdated = "2026-01-01"
+                Name = "recommendation-2"
+                LearnMoreLink = "https://learn.microsoft.com"
+            }
+        }
+        Mock -ModuleName AzRetirementMonitor ConvertFrom-Json { throw "ConvertFrom-Json should not be called" }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        $result.Count | Should -Be 1
+        $result[0].Description | Should -Be "Materialized feature"
+    }
+
+    It "Should emit recommendations immediately when Stream is specified" {
+        $result = @(Get-AzRetirementRecommendation -Stream)
+
+        $result.Count | Should -Be 1
+        $result[0].RecommendationId | Should -Be "recommendation-1"
+    }
+}
+
 Describe "Get-AzRetirementMetadataItem" {
     It "Should have no parameters" {
         $cmd = Get-Command Get-AzRetirementMetadataItem
@@ -405,6 +473,54 @@ Describe "Export-AzRetirementReport" {
         $cmd = Get-Command Export-AzRetirementReport
         $param = $cmd.Parameters['Recommendations']
         $param.Attributes.Where({$_.ValueFromPipeline}).Count | Should -BeGreaterThan 0
+    }
+}
+
+Describe "Export-AzRetirementReport OutputPath Validation" {
+    It "Should reject OutputPath with path traversal sequences" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        { $testRec | Export-AzRetirementReport -OutputPath "../../etc/malicious.csv" -Format CSV -Confirm:$false } | Should -Throw "*Path traversal*"
+    }
+
+    It "Should reject OutputPath with trailing path traversal" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        { $testRec | Export-AzRetirementReport -OutputPath "./foo/../malicious.csv" -Format CSV -Confirm:$false } | Should -Throw "*Path traversal*"
+    }
+
+    It "Should reject OutputPath when parent directory does not exist" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        $missingParentDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+        $missingOutputPath = Join-Path $missingParentDir "report.csv"
+        { $testRec | Export-AzRetirementReport -OutputPath $missingOutputPath -Format CSV -Confirm:$false } | Should -Throw "*Directory does not exist*"
+    }
+
+    It "Should accept OutputPath in current directory" {
+        $testRec = [PSCustomObject]@{
+            SubscriptionId = "sub1"; ResourceId = "id1"; ResourceName = "name1"
+            ResourceType = "type1"; ResourceGroup = "rg1"; Category = "cat1"
+            Impact = "High"; Problem = "p"; Solution = "s"; Description = "d"
+            LastUpdated = "2026-01-01"; IsRetirement = $true
+            RecommendationId = "rec1"; LearnMoreLink = ""; ResourceLink = ""
+        }
+        { $testRec | Export-AzRetirementReport -OutputPath "report.csv" -Format CSV -WhatIf -Confirm:$false } | Should -Not -Throw
     }
 }
 
@@ -595,7 +711,7 @@ Describe "Token Expiration Validation" {
     BeforeEach {
         # Clear the token without reimporting the entire module
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
     }
     
     It "Get-AzRetirementMetadataItem should throw when not authenticated" {
@@ -613,7 +729,7 @@ Describe "Token Expiration Validation" {
         
         # Access the module's script scope to set the token
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $expiredToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $expiredToken
         
         { Get-AzRetirementMetadataItem -ErrorAction Stop } | Should -Throw "*expired*"
     }
@@ -625,7 +741,7 @@ Describe "Token Expiration Validation" {
         
         # Access the module's script scope to set the token
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $expiredToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $expiredToken
         
         { Get-AzRetirementRecommendation -UseAPI -ErrorAction Stop } | Should -Throw "*expired*"
     }
@@ -637,7 +753,7 @@ Describe "Token Expiration Validation" {
         
         # Access the module's script scope to set the token and test it
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $validToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $validToken
         
         # Call the private Test function to verify the token is valid
         $testResult = & $module { Test-AzRetirementMonitorToken }
@@ -649,7 +765,7 @@ Describe "Token Expiration Validation" {
         $malformedToken = "header.payload"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $malformedToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $malformedToken
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -663,7 +779,7 @@ Describe "Token Expiration Validation" {
         $malformedToken = "$header.$invalidPayload.$signature"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $malformedToken
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $malformedToken
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -683,7 +799,7 @@ Describe "Token Expiration Validation" {
         $tokenNoExp = "$header.$payload.$signature"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $tokenNoExp
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $tokenNoExp
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -722,14 +838,14 @@ Describe "Token Audience Validation" {
     BeforeEach {
         # Clear the token before each test
         $module = Get-Module AzRetirementMonitor
-        & $module { $script:AccessToken = $null }
+        & $module { $script:AccessTokenSecureString = $null }
     }
     
     It "Should accept token with https://management.azure.com audience" {
         $token = New-TestTokenWithAudience -Audience "https://management.azure.com"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $true
@@ -739,7 +855,7 @@ Describe "Token Audience Validation" {
         $token = New-TestTokenWithAudience -Audience "https://management.azure.com/"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $true
@@ -750,7 +866,7 @@ Describe "Token Audience Validation" {
         $token = New-TestTokenWithAudience -Audience "https://management.core.windows.net"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $true
@@ -760,7 +876,7 @@ Describe "Token Audience Validation" {
         $token = New-TestTokenWithAudience -Audience "https://graph.microsoft.com"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -770,7 +886,7 @@ Describe "Token Audience Validation" {
         $token = New-TestTokenWithAudience -Audience "https://example.com"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $token
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $token
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -790,7 +906,7 @@ Describe "Token Audience Validation" {
         $tokenNoAud = "$header.$payload.$signature"
         
         $module = Get-Module AzRetirementMonitor
-        & $module { param($token) $script:AccessToken = $token } $tokenNoAud
+        & $module { param($token) $script:AccessTokenSecureString = ConvertTo-SecureString $token -AsPlainText -Force } $tokenNoAud
         
         $testResult = & $module { Test-AzRetirementMonitorToken }
         $testResult | Should -Be $false
@@ -869,5 +985,109 @@ Describe "Invoke-AzPagedRequest NextLink Validation" {
 
         $results.Count | Should -Be 1
         $results[0].id | Should -Be 1
+    }
+}
+
+Describe "Invoke-AzPagedRequest Retry Logic" {
+    BeforeAll {
+        $module = Get-Module AzRetirementMonitor
+    }
+
+    It "Should retry on 429 throttling and succeed" {
+        $script:retryCallCount = 0
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = $null
+        }
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:retryCallCount++
+            if ($script:retryCallCount -eq 1) {
+                $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::TooManyRequests; Headers = $null }
+                $exception = New-Object System.Net.WebException "429 Too Many Requests"
+                $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
+                throw $exception
+            }
+            return $page1
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" }
+        }
+
+        $results.Count | Should -Be 1
+        $script:retryCallCount | Should -Be 2
+    }
+
+    It "Should return partial results after exhausting retries" {
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::InternalServerError; Headers = $null }
+            $exception = New-Object System.Net.WebException "500 Server Error"
+            $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
+            throw $exception
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" } -ErrorAction SilentlyContinue
+        }
+
+        $results.Count | Should -Be 0
+    }
+
+    It "Should not retry on non-retryable errors (e.g. 403)" {
+        $script:nonRetryCallCount = 0
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:nonRetryCallCount++
+            $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::Forbidden; Headers = $null }
+            $exception = New-Object System.Net.WebException "403 Forbidden"
+            $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
+            throw $exception
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" } -ErrorAction SilentlyContinue
+        }
+
+        $script:nonRetryCallCount | Should -Be 1
+    }
+
+    It "Should honor Retry-After header with delta-seconds value" {
+        $script:retryAfterCallCount = 0
+        $page1 = [PSCustomObject]@{
+            value    = @([PSCustomObject]@{ id = 1 })
+            nextLink = $null
+        }
+
+        Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
+            $script:retryAfterCallCount++
+            if ($script:retryAfterCallCount -eq 1) {
+                $mockHeaders = @{ "Retry-After" = "5" }
+                $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::TooManyRequests; Headers = $mockHeaders }
+                $exception = New-Object System.Exception "429 Too Many Requests"
+                $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
+                throw $exception
+            }
+            return $page1
+        }
+        Mock Start-Sleep -ModuleName AzRetirementMonitor {}
+
+        $results = & $module {
+            Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" }
+        }
+
+        $results.Count | Should -Be 1
+        Should -Invoke Start-Sleep -ModuleName AzRetirementMonitor -ParameterFilter { $Seconds -eq 5 }
+        Remove-Variable -Name testRetryAfterHeaders -Scope Global -ErrorAction SilentlyContinue
+    }
+}
+
+Describe "Get-AzRetirementRecommendation -Stream Parameter" {
+    It "Should have a Stream switch parameter" {
+        $cmd = Get-Command Get-AzRetirementRecommendation
+        $param = $cmd.Parameters['Stream']
+        $param | Should -Not -BeNull
+        $param.ParameterType.Name | Should -Be 'SwitchParameter'
     }
 }
