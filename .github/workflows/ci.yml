@@ -60,6 +60,19 @@ jobs:
           Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
           Write-Host "PSEdition: $($PSVersionTable.PSEdition)"
 
+      - name: Verify expected PowerShell Core
+        shell: pwsh
+        run: |
+          if ($PSVersionTable.PSEdition -ne 'Core') {
+            Write-Error "Expected PSEdition 'Core' but got '$($PSVersionTable.PSEdition)'"
+            exit 1
+          }
+          if ($PSVersionTable.PSVersion.Major -lt 6) {
+            Write-Error "Expected PowerShell 6 or later but got $($PSVersionTable.PSVersion)"
+            exit 1
+          }
+          Write-Host "Confirmed: PowerShell Core $($PSVersionTable.PSVersion)"
+
       - name: Install Pester
         shell: pwsh
         run: |
