@@ -17,7 +17,11 @@ function Invoke-AzPagedRequest {
         if ([string]::IsNullOrEmpty($accessToken)) {
             throw "Stored access token is empty."
         }
-        $Headers.Authorization = "Bearer $($credential.GetNetworkCredential().Password)"
+        $Headers.Authorization = "Bearer $accessToken"
+    }
+
+        $accessToken = $null
+        $credential = $null
     }
 
     $results = [System.Collections.Generic.List[object]]::new()

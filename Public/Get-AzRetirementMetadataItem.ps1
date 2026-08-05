@@ -30,9 +30,13 @@ https://learn.microsoft.com/rest/api/advisor/metadata
         throw "Stored access token is empty."
     }
     $headers = @{
-        Authorization  = "Bearer $script:AccessToken"
+        Authorization  = "Bearer $accessToken"
         "Content-Type" = "application/json"
     }
+
+    $headers.Authorization = "Bearer $accessToken"
+    $accessToken = $null
+    $credential = $null
 
     # Filter for HighAvailability category and ServiceUpgradeAndRetirement subcategory
     $filter = "recommendationCategory eq 'HighAvailability' and recommendationSubCategory eq 'ServiceUpgradeAndRetirement'"

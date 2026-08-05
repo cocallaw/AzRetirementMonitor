@@ -63,8 +63,11 @@ Gets recommendations using the REST API method
                 throw "Stored access token is empty."
             }
             $headers = @{
-                Authorization  = "Bearer $script:AccessToken"
+                Authorization  = "Bearer $accessToken"
                 "Content-Type" = "application/json"
+                $headers.Authorization = "Bearer $accessToken"
+                $accessToken = $null
+                $credential = $null
             }
         }
         else {
