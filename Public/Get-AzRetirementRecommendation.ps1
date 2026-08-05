@@ -171,14 +171,8 @@ Gets recommendations using the REST API method
 
                 # Common filter for ServiceUpgradeAndRetirement subcategory
                 $subcategoryFilter = {
-                    # Parse extended properties to check subcategory
-                    if ($_.ExtendedProperty) {
-                        $extProps = $_.ExtendedProperty | ConvertFrom-Json
-                        $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement'
-                    }
-                    else {
-                        $false
-                    }
+                    $extProps = Get-AzAdvisorExtendedProperty -Recommendation $_
+                    $extProps -and $extProps.recommendationSubCategory -eq 'ServiceUpgradeAndRetirement'
                 }
                 
                 $recommendations = if ($SubscriptionId) {
@@ -232,41 +226,13 @@ Gets recommendations using the REST API method
 
                 foreach ($rec in $recommendations) {
                     # Parse extended properties for retirement information
-                    $extProps = $null
+                    $extProps = Get-AzAdvisorExtendedProperty -Recommendation $rec
                     $retirementFeatureName = $null
                     $retirementDate = $null
 
-                    if ($rec.ExtendedProperty) {
-                        # Reuse a previously-parsed ExtendedProperty if available to avoid redundant JSON parsing
-                        if ($rec.PSObject.Properties.Name -contains 'ExtendedPropertyObject') {
-                            $extProps = $rec.ExtendedPropertyObject
-                        }
-                        else {
-                            try {
-                                if ($rec.ExtendedProperty -is [string]) {
-                                    # ExtendedProperty is JSON text; parse it once
-                                    $extProps = $rec.ExtendedProperty | ConvertFrom-Json
-                                }
-                                elseif ($rec.ExtendedProperty -is [hashtable] -or $rec.ExtendedProperty -is [pscustomobject]) {
-                                    # ExtendedProperty is already an object; no need to parse
-                                    $extProps = $rec.ExtendedProperty
-                                }
-
-                                if ($extProps) {
-                                    # Cache the parsed object on the recommendation to prevent re-parsing
-                                    $rec | Add-Member -NotePropertyName ExtendedPropertyObject -NotePropertyValue $extProps -Force
-                                }
-                            }
-                            catch {
-                                Write-Verbose "Failed to parse ExtendedProperty: $_"
-                                $extProps = $null
-                            }
-                        }
-
-                        if ($extProps) {
-                            $retirementFeatureName = $extProps.retirementFeatureName
-                            $retirementDate = $extProps.retirementDate
-                        }
+                    if ($extProps) {
+                        $retirementFeatureName = $extProps.retirementFeatureName
+                        $retirementDate = $extProps.retirementDate
                     }
 
                     # Check if this is a retirement recommendation

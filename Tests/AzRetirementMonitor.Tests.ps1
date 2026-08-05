@@ -371,6 +371,65 @@ Describe "Get-AzRetirementRecommendation Context Switching Logic" {
     }
 }
 
+Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
+    BeforeEach {
+        Mock -ModuleName AzRetirementMonitor Test-AzAdvisorSession { $true }
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            [PSCustomObject]@{
+                ExtendedProperty = '{"recommendationSubCategory":"ServiceUpgradeAndRetirement","retirementFeatureName":"Test feature"}'
+                ShortDescriptionProblem = "Service retirement"
+                ShortDescriptionSolution = "Upgrade the service"
+                ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+                Category = "HighAvailability"
+                Impact = "High"
+                LastUpdated = "2026-01-01"
+                Name = "recommendation-1"
+                LearnMoreLink = "https://learn.microsoft.com"
+            }
+        }
+    }
+
+    It "Should parse string ExtendedProperty once and reuse the cached object" {
+        Mock -ModuleName AzRetirementMonitor ConvertFrom-Json {
+            [PSCustomObject]@{
+                recommendationSubCategory = "ServiceUpgradeAndRetirement"
+                retirementFeatureName = "Test feature"
+            }
+        }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        Should -Invoke -ModuleName AzRetirementMonitor ConvertFrom-Json -Times 1 -Exactly
+        $result.Count | Should -Be 1
+        $result[0].Description | Should -Be "Test feature"
+    }
+
+    It "Should reuse an already-materialized ExtendedProperty without JSON parsing" {
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            [PSCustomObject]@{
+                ExtendedProperty = [PSCustomObject]@{
+                    recommendationSubCategory = "ServiceUpgradeAndRetirement"
+                    retirementFeatureName = "Materialized feature"
+                }
+                ShortDescriptionProblem = "Service retirement"
+                ShortDescriptionSolution = "Upgrade the service"
+                ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+                Category = "HighAvailability"
+                Impact = "High"
+                LastUpdated = "2026-01-01"
+                Name = "recommendation-2"
+                LearnMoreLink = "https://learn.microsoft.com"
+            }
+        }
+        Mock -ModuleName AzRetirementMonitor ConvertFrom-Json { throw "ConvertFrom-Json should not be called" }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        $result.Count | Should -Be 1
+        $result[0].Description | Should -Be "Materialized feature"
+    }
+}
+
 Describe "Get-AzRetirementMetadataItem" {
     It "Should have no parameters" {
         $cmd = Get-Command Get-AzRetirementMetadataItem
