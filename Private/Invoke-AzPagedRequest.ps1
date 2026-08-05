@@ -20,10 +20,6 @@ function Invoke-AzPagedRequest {
         $Headers.Authorization = "Bearer $accessToken"
     }
 
-        $accessToken = $null
-        $credential = $null
-    }
-
     $results = [System.Collections.Generic.List[object]]::new()
     $allowedHosts = @("management.azure.com")
     $nextUri = $Uri

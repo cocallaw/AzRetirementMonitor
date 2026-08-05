@@ -65,10 +65,10 @@ Gets recommendations using the REST API method
             $headers = @{
                 Authorization  = "Bearer $accessToken"
                 "Content-Type" = "application/json"
-                $headers.Authorization = "Bearer $accessToken"
-                $accessToken = $null
-                $credential = $null
             }
+            $headers.Authorization = "Bearer $accessToken"
+            $accessToken = $null
+            $credential = $null
         }
         else {
             # PowerShell module mode (default) - requires Az.Advisor and active session
