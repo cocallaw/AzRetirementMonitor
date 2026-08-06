@@ -376,6 +376,21 @@ Describe "Get-AzRetirementRecommendation Context Switching Logic" {
 }
 
 Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
+    BeforeAll {
+        $module = Get-Module AzRetirementMonitor
+        & $module {
+            function script:Get-AzAdvisorRecommendation {
+                param([string]$Filter)
+            }
+        }
+    }
+
+    AfterAll {
+        & $module {
+            Remove-Item Function:\Get-AzAdvisorRecommendation -ErrorAction SilentlyContinue
+        }
+    }
+
     BeforeEach {
         Mock -ModuleName AzRetirementMonitor Test-AzAdvisorSession { $true }
         Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
@@ -949,9 +964,9 @@ Describe "Invoke-AzPagedRequest NextLink Validation" {
         }
         Mock Invoke-RestMethod -ModuleName AzRetirementMonitor { return $page1 }
 
-        $results = & $module {
+        $results = @(& $module {
             Invoke-AzPagedRequest -Uri "https://management.azure.com/page1" -Headers @{ Authorization = "Bearer test" } -ErrorVariable pagedErrors -ErrorAction SilentlyContinue
-        }
+        })
 
         $results.Count | Should -Be 1
         $results[0].id | Should -Be 1
@@ -964,9 +979,9 @@ Describe "Invoke-AzPagedRequest NextLink Validation" {
         }
         Mock Invoke-RestMethod -ModuleName AzRetirementMonitor { return $page1 }
 
-        $results = & $module {
+        $results = @(& $module {
             Invoke-AzPagedRequest -Uri "https://management.azure.com/page1" -Headers @{ Authorization = "Bearer test" } -ErrorVariable pagedErrors -ErrorAction SilentlyContinue
-        }
+        })
 
         $results.Count | Should -Be 1
         $results[0].id | Should -Be 1
@@ -979,9 +994,9 @@ Describe "Invoke-AzPagedRequest NextLink Validation" {
         }
         Mock Invoke-RestMethod -ModuleName AzRetirementMonitor { return $page1 }
 
-        $results = & $module {
+        $results = @(& $module {
             Invoke-AzPagedRequest -Uri "https://management.azure.com/page1" -Headers @{ Authorization = "Bearer test" } -ErrorVariable pagedErrors -ErrorAction SilentlyContinue
-        }
+        })
 
         $results.Count | Should -Be 1
         $results[0].id | Should -Be 1
@@ -1002,7 +1017,7 @@ Describe "Invoke-AzPagedRequest Retry Logic" {
         Mock Invoke-RestMethod -ModuleName AzRetirementMonitor {
             $script:retryCallCount++
             if ($script:retryCallCount -eq 1) {
-                $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::TooManyRequests; Headers = $null }
+                $mockResponse = [PSCustomObject]@{ StatusCode = 429; Headers = $null }
                 $exception = New-Object System.Net.WebException "429 Too Many Requests"
                 $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
                 throw $exception
@@ -1011,9 +1026,9 @@ Describe "Invoke-AzPagedRequest Retry Logic" {
         }
         Mock Start-Sleep -ModuleName AzRetirementMonitor {}
 
-        $results = & $module {
+        $results = @(& $module {
             Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" }
-        }
+        })
 
         $results.Count | Should -Be 1
         $script:retryCallCount | Should -Be 2
@@ -1064,7 +1079,7 @@ Describe "Invoke-AzPagedRequest Retry Logic" {
             $script:retryAfterCallCount++
             if ($script:retryAfterCallCount -eq 1) {
                 $mockHeaders = @{ "Retry-After" = "5" }
-                $mockResponse = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::TooManyRequests; Headers = $mockHeaders }
+                $mockResponse = [PSCustomObject]@{ StatusCode = 429; Headers = $mockHeaders }
                 $exception = New-Object System.Exception "429 Too Many Requests"
                 $exception | Add-Member -NotePropertyName Response -NotePropertyValue $mockResponse -Force
                 throw $exception
@@ -1073,9 +1088,9 @@ Describe "Invoke-AzPagedRequest Retry Logic" {
         }
         Mock Start-Sleep -ModuleName AzRetirementMonitor {}
 
-        $results = & $module {
+        $results = @(& $module {
             Invoke-AzPagedRequest -Uri "https://management.azure.com/test" -Headers @{ Authorization = "Bearer test" }
-        }
+        })
 
         $results.Count | Should -Be 1
         Should -Invoke Start-Sleep -ModuleName AzRetirementMonitor -ParameterFilter { $Seconds -eq 5 }
