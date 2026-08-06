@@ -6,7 +6,8 @@ description: |
   test, and CI improvements.
 
 on:
-  schedule: every 24h
+  schedule:
+    - cron: "12 0 * * *"
   workflow_dispatch:
   slash_command:
     name: repo-assist
