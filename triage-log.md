@@ -12,3 +12,10 @@ Findings:
 - No security details were disclosed in comments.
 
 Action taken: none (noop) — issue tracker already in a well-triaged state.
+
+## Run: 2026-08-06
+
+Issue #68 ([BUG] Pester tests fail under Windows PowerShell 5.1):
+- Labeled: ci, needs investigation (bug already present).
+- Commented with analysis: reproduced locally with pwsh 7.6.3 (0 failures, confirming PS5.1-specific issue); pointed to likely divergence in Invoke-AzPagedRequest.ps1 WebException/StatusCode/Headers handling between PS5.1 HttpWebResponse and PS7 response objects.
+- No draft PR opened — cannot validate a fix against real Windows PowerShell 5.1 in this sandbox.
