@@ -28,6 +28,17 @@ Exports API-sourced recommendations to JSON format
         [object[]]$Recommendations,
 
         [Parameter(Mandatory)]
+        [ValidateScript({
+            $pathSegments = ($_ -split '[/\\]' | Where-Object { $_ -ne '' })
+            if ($pathSegments -contains '..') {
+                throw "Path traversal sequences are not allowed in OutputPath."
+            }
+            $parent = Split-Path $_ -Parent
+            if ($parent -and -not (Test-Path -Path $parent -PathType Container)) {
+                throw "Directory does not exist: $parent"
+            }
+            $true
+        })]
         [string]$OutputPath,
 
         [ValidateSet("CSV", "JSON", "HTML")]
@@ -35,11 +46,13 @@ Exports API-sourced recommendations to JSON format
     )
 
     begin {
-        $allRecs = @()
+        $allRecs = [System.Collections.Generic.List[object]]::new()
     }
 
     process {
-        $allRecs += $Recommendations
+        foreach ($rec in $Recommendations) {
+            $allRecs.Add($rec)
+        }
     }
 
     end {

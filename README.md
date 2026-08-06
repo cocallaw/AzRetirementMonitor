@@ -15,14 +15,16 @@ Azure services evolve constantly, with features, APIs, and entire services being
 
 **AzRetirementMonitor** helps you proactively identify Azure resources affected by upcoming retirements by querying Azure Advisor for service upgrade and retirement recommendations across all your subscriptions. This gives you time to plan migrations and upgrades before services are discontinued.
 
-## 🚀 Version 2.0.0 - Breaking Changes
+## 🚀 Version 3.0.0
 
-**Version 2.0.0 introduces a major change in how the module works:**
+**Version 3.0.0 builds on the Az.Advisor-first workflow introduced in v2.0.0:**
 
-- **Default behavior**: Now uses Az.Advisor PowerShell module (full parity with Azure Advisor)
+- **Default behavior**: Uses Az.Advisor PowerShell module (full parity with Azure Advisor)
 - **API mode**: Available via `-UseAPI` switch on Get-AzRetirementRecommendation
 - **Connect-AzRetirementMonitor**: Now only needed for API mode and requires `-UsingAPI` switch
-- **PowerShell compatibility**: Now supports both PowerShell Desktop 5.1 and Core 7+
+- **PowerShell compatibility**: Supports both PowerShell Desktop 5.1 and Core 7+
+- **Streaming**: Use `-Stream` to emit recommendations as they are retrieved.
+- **Resilience and security**: REST pagination is validated and transient throttling is retried; API tokens are held as `SecureString` values.
 
 ### Migration Guide from v1.x
 
@@ -181,6 +183,7 @@ Get-AzRetirementRecommendation -UseAPI
 
 - `SubscriptionId` - One or more subscription IDs (defaults to all subscriptions)
 - `UseAPI` - Use REST API instead of Az.Advisor module
+- `Stream` - Emit recommendations as they are retrieved instead of buffering all results
 
 ### Connect-AzRetirementMonitor
 
@@ -208,7 +211,7 @@ Connect-AzRetirementMonitor -UsingAPI -UseAzPowerShell
 
 Clears the access token stored by the module. This does not affect your Azure CLI or Az.Accounts session - you remain logged in to Azure.
 
-The token is securely cleared from module memory and cannot be recovered after disconnection.
+The `SecureString` token reference is cleared from module memory when you disconnect. Note that PowerShell module scope is not a security boundary — other code running in the same session can access the reference and a malicious same-session process may decrypt it. Use `Disconnect-AzRetirementMonitor` when done, and avoid running untrusted scripts in the same session.
 
 **Only relevant when using API mode.**
 
@@ -370,9 +373,9 @@ The API method uses a **read-only, scoped token** approach to ensure security an
    - **Az.Accounts**: Uses `Get-AzAccessToken` to request a token from your connected context
    - The module does **not** prompt for credentials or re-authenticate you
 
-2. **Token Storage**: The token is stored in a **module-scoped variable** (`$script:AccessToken`):
-   - Only accessible within the AzRetirementMonitor module
-   - Not accessible to other PowerShell modules or sessions
+2. **Token Storage**: The token is stored as a **`SecureString` in module scope** (`$script:AccessTokenSecureString`):
+   - Plaintext is not retained in the module-scoped variable
+   - Plaintext exists only transiently while preparing REST request headers
    - Automatically cleared when the module is unloaded
    - Can be manually cleared with `Disconnect-AzRetirementMonitor`
 

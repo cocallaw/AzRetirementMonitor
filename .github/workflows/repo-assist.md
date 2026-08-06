@@ -25,37 +25,48 @@ safe-outputs:
     max: 5
     target: "*"
     hide-older-comments: true
-
   add-labels:
-    allowed:
-      - bug
-      - ci
-      - documentation
-      - duplicate
-      - enhancement
-      - good first issue
-      - help wanted
-      - invalid
-      - performance
-      - "priority: high"
-      - "priority: medium"
-      - "priority: low"
-      - question
-      - security
-      - wontfix
-    max: 20
-    target: "*"
-
+      allowed:
+        - bug
+        - ci
+        - documentation
+        - duplicate
+        - enhancement
+        - good first issue
+        - help wanted
+        - invalid
+        - performance
+        - "priority: high"
+        - "priority: medium"
+        - "priority: low"
+        - question
+        - security
+        - wontfix
+        - needs triage
+        - needs investigation
+      max: 20
+      target: "*"
   remove-labels:
-    allowed:
-      - bug
-      - ci
-      - documentation
-      - enhancement
-      - performance
-      - question
-    max: 5
-    target: "*"
+      allowed:
+        - bug
+        - ci
+        - documentation
+        - duplicate
+        - enhancement
+        - good first issue
+        - help wanted
+        - invalid
+        - performance
+        - "priority: high"
+        - "priority: medium"
+        - "priority: low"
+        - question
+        - security
+        - wontfix
+        - needs triage
+        - needs investigation
+      max: 5
+      target: "*"
 
   create-pull-request:
     draft: true
@@ -125,26 +136,29 @@ Begin every issue comment with:
 
 ## Pull-request triage
 
-For pull requests:
+Use `question` for requests for information.
 
-- Apply appropriate existing labels.
-- Check for tests and documentation.
-- Check PowerShell 5.1 compatibility.
-- Check compliance with `CONTRIBUTING.md`.
-- Comment only when specific, actionable feedback is available.
-- Do not approve, merge, close, or modify pull requests during triage.
-- Do not repeat a comment unless a human has added new information.
+Use `ci` for issues concerning GitHub Actions, build validation, or deployment automation.
 
-## Draft pull requests
+Use `performance` for measurable performance concerns.
 
-Create a draft PR only for a clearly understood, low-risk change.
+Use `security` for security-related issues. Do not discuss vulnerability details publicly; direct reporters to `SECURITY.md`.
 
-Initially allowed:
+Use `priority: high` only when the issue has significant impact or urgency.
 
-- Documentation corrections
-- Pester test additions or improvements
-- Clear error-message improvements
-- Small CI or tooling corrections
+Use `priority: medium` for actionable issues that should be addressed in the near term.
+
+Use `priority: low` for useful but non-urgent work.
+
+Use `invalid` only when the issue does not contain a valid bug, feature request, question, or actionable report.
+
+Use `duplicate` only when an existing issue clearly covers the same problem. Do not close the issue automatically.
+
+Use `needs triage` when the issue cannot yet be classified confidently.
+
+Use `needs investigation` when additional technical analysis is required.
+
+Do not remove priority labels unless there is clear evidence that the priority is incorrect.
 
 Before creating a draft PR:
 
@@ -205,6 +219,7 @@ Use:
 Do not guess labels. Do not automatically remove priority, security, duplicate, or wontfix labels.
 
 ## Memory
+Use repository memory to avoid duplicate comments and to track:
 
 Use repository memory to track:
 
