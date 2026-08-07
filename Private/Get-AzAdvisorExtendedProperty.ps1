@@ -5,19 +5,29 @@ function Get-AzAdvisorExtendedProperty {
         [object]$Recommendation
     )
 
-    if ($Recommendation.PSObject.Properties.Name -contains 'ExtendedPropertyObject') {
+    if (
+        $Recommendation.PSObject.Properties.Name -contains 'ExtendedPropertyObject' -and
+        $null -ne $Recommendation.ExtendedPropertyObject
+    ) {
         return $Recommendation.ExtendedPropertyObject
     }
 
+    $extendedProperty = if ($Recommendation.PSObject.Properties.Name -contains 'ExtendedProperty') {
+        $Recommendation.ExtendedProperty
+    }
+    elseif ($Recommendation.PSObject.Properties.Name -contains 'ExtendedProperties') {
+        $Recommendation.ExtendedProperties
+    }
+
     $extendedPropertyObject = $null
-    if ($Recommendation.ExtendedProperty) {
+    if ($extendedProperty) {
         try {
-            if ($Recommendation.ExtendedProperty -is [string]) {
-                $extendedPropertyObject = $Recommendation.ExtendedProperty | ConvertFrom-Json
+            if ($extendedProperty -is [string]) {
+                $extendedPropertyObject = $extendedProperty | ConvertFrom-Json
             }
             else {
                 # Az.Advisor versions can return an already-materialized property object.
-                $extendedPropertyObject = $Recommendation.ExtendedProperty
+                $extendedPropertyObject = $extendedProperty
             }
         }
         catch {

@@ -423,6 +423,27 @@ Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
         $result[0].Description | Should -Be "Test feature"
     }
 
+    It "Should parse ExtendedProperty when the cache property is null" {
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            [PSCustomObject]@{
+                ExtendedProperty = '{"recommendationSubCategory":"ServiceUpgradeAndRetirement","retirementFeatureName":"Cached feature"}'
+                ExtendedPropertyObject = $null
+                ShortDescriptionProblem = "Service retirement"
+                ShortDescriptionSolution = "Upgrade the service"
+                ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+                Category = "HighAvailability"
+                Impact = "High"
+                LastUpdated = "2026-01-01"
+                Name = "recommendation-cached"
+            }
+        }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        $result.Count | Should -Be 1
+        $result[0].Description | Should -Be "Cached feature"
+    }
+
     It "Should reuse an already-materialized ExtendedProperty without JSON parsing" {
         Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
             [PSCustomObject]@{
@@ -446,6 +467,29 @@ Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
 
         $result.Count | Should -Be 1
         $result[0].Description | Should -Be "Materialized feature"
+    }
+
+    It "Should filter recommendations with dictionary or plural extended properties" {
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            [PSCustomObject]@{
+                ExtendedProperties = @{
+                    recommendationSubCategory = "ServiceUpgradeAndRetirement"
+                    retirementFeatureName = "Dictionary feature"
+                }
+                ShortDescriptionProblem = "Service retirement"
+                ShortDescriptionSolution = "Upgrade the service"
+                ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+                Category = "HighAvailability"
+                Impact = "High"
+                LastUpdated = "2026-01-01"
+                Name = "recommendation-3"
+            }
+        }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        $result.Count | Should -Be 1
+        $result[0].Description | Should -Be "Dictionary feature"
     }
 
     It "Should emit recommendations immediately when Stream is specified" {
