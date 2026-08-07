@@ -19,3 +19,10 @@ Issue #68 ([BUG] Pester tests fail under Windows PowerShell 5.1):
 - Labeled: ci, needs investigation (bug already present).
 - Commented with analysis: reproduced locally with pwsh 7.6.3 (0 failures, confirming PS5.1-specific issue); pointed to likely divergence in Invoke-AzPagedRequest.ps1 WebException/StatusCode/Headers handling between PS5.1 HttpWebResponse and PS7 response objects.
 - No draft PR opened — cannot validate a fix against real Windows PowerShell 5.1 in this sandbox.
+
+## Run: 2026-08-07
+
+- Listed open issues: none readable (issues #73 and #60 filtered by integrity policy — low integrity content, cannot be read/acted on by this agent).
+- Open PRs: #74 "Propagate invocation-cap guardrail signal in Repo Assist failure handling" (draft, by Copilot coding agent, modifies GitHub Actions workflow env passthrough). This PR touches workflow files which is outside this agent's remit (no workflow permission changes) and was not authored by Repo Assist — no action taken.
+- No new issues to triage, no draft PR created this run.
+- Action taken: none (noop).
