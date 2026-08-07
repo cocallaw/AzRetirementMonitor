@@ -492,6 +492,51 @@ Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
         $result[0].Description | Should -Be "Dictionary feature"
     }
 
+    It "Should filter Az.Advisor associative extended properties by subcategory" {
+        $retirementProperties = [System.Collections.Generic.Dictionary[string,string]]::new()
+        $retirementProperties['recommendationSubCategory'] = 'ServiceUpgradeAndRetirement'
+        $retirementProperties['retirementFeatureName'] = 'Operating System (OS) Disks on Standard HDD'
+        $retirementProperties['retirementDate'] = '2028-09-08'
+
+        $scalabilityProperties = [System.Collections.Generic.Dictionary[string,string]]::new()
+        $scalabilityProperties['recommendationSubCategory'] = 'Scalability'
+
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            @(
+                [PSCustomObject]@{
+                    ExtendedProperty = [PSCustomObject]@{
+                        AdditionalProperties = $retirementProperties
+                    }
+                    ShortDescriptionProblem = "Migrate Standard HDD OS Disks to SSD"
+                    ShortDescriptionSolution = "Migrate Standard HDD OS Disks to SSD"
+                    ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/disks/test-disk"
+                    Category = "HighAvailability"
+                    Impact = "Medium"
+                    LastUpdated = "2026-04-16"
+                    Name = "retirement-recommendation"
+                }
+                [PSCustomObject]@{
+                    ExtendedProperty = [PSCustomObject]@{
+                        AdditionalProperties = $scalabilityProperties
+                    }
+                    ShortDescriptionProblem = "Use NAT gateway for outbound connectivity"
+                    ShortDescriptionSolution = "Use NAT gateway for outbound connectivity"
+                    ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/test-vnet"
+                    Category = "HighAvailability"
+                    Impact = "Medium"
+                    LastUpdated = "2026-04-17"
+                    Name = "scalability-recommendation"
+                }
+            )
+        }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        $result.Count | Should -Be 1
+        $result[0].RecommendationId | Should -Be "retirement-recommendation"
+        $result[0].Description | Should -Be "Operating System (OS) Disks on Standard HDD (Retirement Date: 2028-09-08)"
+    }
+
     It "Should emit recommendations immediately when Stream is specified" {
         $result = @(Get-AzRetirementRecommendation -Stream)
 

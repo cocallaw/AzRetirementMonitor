@@ -25,6 +25,13 @@ function Get-AzAdvisorExtendedProperty {
             if ($extendedProperty -is [string]) {
                 $extendedPropertyObject = $extendedProperty | ConvertFrom-Json
             }
+            elseif (
+                $extendedProperty.PSObject.Properties.Name -contains 'AdditionalProperties' -and
+                $null -ne $extendedProperty.AdditionalProperties
+            ) {
+                # Generated Az.Advisor models expose custom fields through this dictionary.
+                $extendedPropertyObject = $extendedProperty.AdditionalProperties
+            }
             else {
                 # Az.Advisor versions can return an already-materialized property object.
                 $extendedPropertyObject = $extendedProperty
