@@ -26,3 +26,10 @@ Issue #68 ([BUG] Pester tests fail under Windows PowerShell 5.1):
 - Open PRs: #74 "Propagate invocation-cap guardrail signal in Repo Assist failure handling" (draft, by Copilot coding agent, modifies GitHub Actions workflow env passthrough). This PR touches workflow files which is outside this agent's remit (no workflow permission changes) and was not authored by Repo Assist — no action taken.
 - No new issues to triage, no draft PR created this run.
 - Action taken: none (noop).
+
+## Run: 2026-08-08
+
+- Open issues: none readable — #73 and #60 remain filtered by integrity policy (low integrity content), consistent with prior run.
+- Open PRs: #77 "Fix Advisor retirement recommendation filtering" (non-draft, opened by repo owner cocallaw) — no Repo Assist action needed, not draft-review scope. #74 (Copilot coding agent, draft, workflow file changes) still outside remit, unchanged since last run.
+- No new issues to triage, no draft PR created this run.
+- Action taken: none (noop).
