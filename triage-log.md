@@ -40,3 +40,10 @@ Issue #68 ([BUG] Pester tests fail under Windows PowerShell 5.1):
 - Open PRs: #77 (non-draft, repo owner cocallaw) — no action needed. #74 (Copilot coding agent, draft, workflow file changes) still outside remit, unchanged.
 - No new issues to triage, no draft PR created this run.
 - Action taken: none (noop).
+
+## Run: 2026-08-10
+
+- Open issues: none readable — #73 and #60 remain filtered by integrity policy (low integrity content), consistent with prior runs.
+- Open PRs: #77 (non-draft, repo owner cocallaw) — no action needed. #74 (Copilot coding agent, draft, workflow file changes) still outside remit, unchanged.
+- No new issues to triage, no draft PR created this run.
+- Action taken: none (noop).
