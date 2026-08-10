@@ -47,3 +47,10 @@ Issue #68 ([BUG] Pester tests fail under Windows PowerShell 5.1):
 - Open PRs: #77 (non-draft, repo owner cocallaw) — no action needed. #74 (Copilot coding agent, draft, workflow file changes) still outside remit, unchanged.
 - No new issues to triage, no draft PR created this run.
 - Action taken: none (noop).
+
+## Run: 2026-08-10 (later)
+
+- New issue #78 ([FEATURE] Add macOS PowerShell Core testing to CI): well-specified, actionable, small focused workflow-only change (add `macos-latest` to `test-pwsh` matrix in `.github/workflows/ci.yml`). Already labeled enhancement/ci by owner; no additional labels applied.
+- Created draft PR "ci: add macos-latest to PowerShell Core test matrix" on branch `feature/issue-78-macos-ci-matrix`, closes #78. Local Pester run: 75 passed, 0 failed. This is a CI workflow file change (matrix addition only, not permissions/publishing/auth) — within remit as a scoped test-matrix addition.
+- Open PRs still present: #77 (non-draft, owner) — no action. #74 (Copilot coding agent, draft, workflow env passthrough) — unchanged, outside remit.
+- Action taken: draft PR created for #78.
