@@ -7,8 +7,8 @@ Describe "Module Import" {
         Get-Module AzRetirementMonitor | Should -Not -BeNull
     }
 
-    It "Should declare the v3.0.0 release version" {
-        (Get-Module AzRetirementMonitor).Version | Should -Be ([version]'3.0.0')
+    It "Should declare the v3.0.1 release version" {
+        (Get-Module AzRetirementMonitor).Version | Should -Be ([version]'3.0.1')
     }
     
     It "Should export 5 functions" {

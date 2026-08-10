@@ -15,9 +15,9 @@ Azure services evolve constantly, with features, APIs, and entire services being
 
 **AzRetirementMonitor** helps you proactively identify Azure resources affected by upcoming retirements by querying Azure Advisor for service upgrade and retirement recommendations across all your subscriptions. This gives you time to plan migrations and upgrades before services are discontinued.
 
-## 🚀 Version 3.0.0
+## 🚀 Version 3.0.1
 
-**Version 3.0.0 builds on the Az.Advisor-first workflow introduced in v2.0.0:**
+**Version 3.0.1 builds on the Az.Advisor-first workflow introduced in v2.0.0:**
 
 - **Default behavior**: Uses Az.Advisor PowerShell module (full parity with Azure Advisor)
 - **API mode**: Available via `-UseAPI` switch on Get-AzRetirementRecommendation
