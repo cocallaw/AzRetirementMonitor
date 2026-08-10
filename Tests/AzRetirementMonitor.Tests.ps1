@@ -7,8 +7,8 @@ Describe "Module Import" {
         Get-Module AzRetirementMonitor | Should -Not -BeNull
     }
 
-    It "Should declare the v3.0.0 release version" {
-        (Get-Module AzRetirementMonitor).Version | Should -Be ([version]'3.0.0')
+    It "Should declare the v3.0.1 release version" {
+        (Get-Module AzRetirementMonitor).Version | Should -Be ([version]'3.0.1')
     }
     
     It "Should export 5 functions" {
@@ -423,6 +423,27 @@ Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
         $result[0].Description | Should -Be "Test feature"
     }
 
+    It "Should parse ExtendedProperty when the cache property is null" {
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            [PSCustomObject]@{
+                ExtendedProperty = '{"recommendationSubCategory":"ServiceUpgradeAndRetirement","retirementFeatureName":"Cached feature"}'
+                ExtendedPropertyObject = $null
+                ShortDescriptionProblem = "Service retirement"
+                ShortDescriptionSolution = "Upgrade the service"
+                ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+                Category = "HighAvailability"
+                Impact = "High"
+                LastUpdated = "2026-01-01"
+                Name = "recommendation-cached"
+            }
+        }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        $result.Count | Should -Be 1
+        $result[0].Description | Should -Be "Cached feature"
+    }
+
     It "Should reuse an already-materialized ExtendedProperty without JSON parsing" {
         Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
             [PSCustomObject]@{
@@ -446,6 +467,74 @@ Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
 
         $result.Count | Should -Be 1
         $result[0].Description | Should -Be "Materialized feature"
+    }
+
+    It "Should filter recommendations with dictionary or plural extended properties" {
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            [PSCustomObject]@{
+                ExtendedProperties = @{
+                    recommendationSubCategory = "ServiceUpgradeAndRetirement"
+                    retirementFeatureName = "Dictionary feature"
+                }
+                ShortDescriptionProblem = "Service retirement"
+                ShortDescriptionSolution = "Upgrade the service"
+                ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+                Category = "HighAvailability"
+                Impact = "High"
+                LastUpdated = "2026-01-01"
+                Name = "recommendation-3"
+            }
+        }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        $result.Count | Should -Be 1
+        $result[0].Description | Should -Be "Dictionary feature"
+    }
+
+    It "Should filter Az.Advisor associative extended properties by subcategory" {
+        $retirementProperties = [System.Collections.Generic.Dictionary[string,string]]::new()
+        $retirementProperties['recommendationSubCategory'] = 'ServiceUpgradeAndRetirement'
+        $retirementProperties['retirementFeatureName'] = 'Operating System (OS) Disks on Standard HDD'
+        $retirementProperties['retirementDate'] = '2028-09-08'
+
+        $scalabilityProperties = [System.Collections.Generic.Dictionary[string,string]]::new()
+        $scalabilityProperties['recommendationSubCategory'] = 'Scalability'
+
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation {
+            @(
+                [PSCustomObject]@{
+                    ExtendedProperty = [PSCustomObject]@{
+                        AdditionalProperties = $retirementProperties
+                    }
+                    ShortDescriptionProblem = "Migrate Standard HDD OS Disks to SSD"
+                    ShortDescriptionSolution = "Migrate Standard HDD OS Disks to SSD"
+                    ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/disks/test-disk"
+                    Category = "HighAvailability"
+                    Impact = "Medium"
+                    LastUpdated = "2026-04-16"
+                    Name = "retirement-recommendation"
+                }
+                [PSCustomObject]@{
+                    ExtendedProperty = [PSCustomObject]@{
+                        AdditionalProperties = $scalabilityProperties
+                    }
+                    ShortDescriptionProblem = "Use NAT gateway for outbound connectivity"
+                    ShortDescriptionSolution = "Use NAT gateway for outbound connectivity"
+                    ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Network/virtualNetworks/test-vnet"
+                    Category = "HighAvailability"
+                    Impact = "Medium"
+                    LastUpdated = "2026-04-17"
+                    Name = "scalability-recommendation"
+                }
+            )
+        }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        $result.Count | Should -Be 1
+        $result[0].RecommendationId | Should -Be "retirement-recommendation"
+        $result[0].Description | Should -Be "Operating System (OS) Disks on Standard HDD (Retirement Date: 2028-09-08)"
     }
 
     It "Should emit recommendations immediately when Stream is specified" {
