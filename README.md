@@ -351,7 +351,7 @@ Disconnect-AzRetirementMonitor
 
 | Feature | Default (Az.Advisor) | API Method |
 |---------|---------------------|------------|
-| **Data Parity** | ✅ Full parity with Azure Portal | ⚠️ May have slight differences |
+| **Data Parity** | ✅ Full parity with Azure Portal | ✅ Full parity with Azure Portal |
 | **Authentication** | `Connect-AzAccount` | `Connect-AzRetirementMonitor -UsingAPI` |
 | **Module Required** | Az.Advisor, Az.Accounts | None (uses REST API) |
 | **Usage** | `Get-AzRetirementRecommendation` | `Get-AzRetirementRecommendation -UseAPI` |
