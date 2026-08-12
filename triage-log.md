@@ -61,3 +61,10 @@ Issue #68 ([BUG] Pester tests fail under Windows PowerShell 5.1):
 - Open PRs: #81 "ci: add macOS to PowerShell Core test matrix" (draft, Copilot coding agent) — addresses #78, not authored by Repo Assist, no action needed. #74 (Copilot coding agent, draft, workflow env passthrough) — unchanged, outside remit. #77 no longer open (merged/closed since last run).
 - No new issues to triage, no draft PR created this run.
 - Action taken: none (noop).
+
+## Run: 2026-08-12
+
+- Open issues: #78 (already labeled enhancement/ci, already has PR #81). #79, #73, #60 remain filtered by integrity policy (low integrity content), unreadable/unactionable, consistent with prior runs.
+- Open PRs: #81 (draft, Copilot coding agent, addresses #78) — no action needed. #74 (draft, Copilot coding agent, workflow env passthrough) — unchanged, outside remit.
+- No new issues to triage, no draft PR created this run.
+- Action taken: none (noop).
