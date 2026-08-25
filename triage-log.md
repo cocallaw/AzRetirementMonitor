@@ -152,3 +152,10 @@ Issue #68 ([BUG] Pester tests fail under Windows PowerShell 5.1):
 - Open PRs: only #74 (draft, Copilot coding agent, workflow env passthrough) — unchanged, outside remit (touches workflow files, not authored by Repo Assist).
 - No new issues to triage, no draft PR created this run.
 - Action taken: none (noop).
+
+## Run: 2026-08-25
+
+- Open issues: none readable — #60 remains filtered by integrity policy (low integrity content), consistent with all prior runs.
+- Open PRs: only #74 (draft, Copilot coding agent, workflow env passthrough) — unchanged, outside remit (touches workflow files, not authored by Repo Assist).
+- No new issues to triage, no draft PR created this run.
+- Action taken: none (noop).
