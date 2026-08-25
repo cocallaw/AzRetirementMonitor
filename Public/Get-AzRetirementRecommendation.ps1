@@ -154,7 +154,7 @@ Gets recommendations using the REST API method
                             LastUpdated      = $rec.properties.lastUpdated
                             IsRetirement     = $isRetirement
                             RecommendationId = $rec.name
-                            LearnMoreLink    = $rec.properties.learnMoreLink
+                            LearnMoreLink    = ConvertTo-AzRetirementLearnMoreLink $rec.properties.learnMoreLink
                             ResourceLink     = $resourceLink
                         }
                         if ($Stream) {
@@ -323,7 +323,7 @@ Gets recommendations using the REST API method
                         LastUpdated      = $rec.LastUpdated
                         IsRetirement     = $isRetirement
                         RecommendationId = $rec.Name
-                        LearnMoreLink    = if ($rec.LearnMoreLink) { $rec.LearnMoreLink } else { $null }
+                        LearnMoreLink    = ConvertTo-AzRetirementLearnMoreLink $rec.LearnMoreLink
                         ResourceLink     = $resourceLink
                     }
                     if ($Stream) {

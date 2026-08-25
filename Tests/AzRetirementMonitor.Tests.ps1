@@ -421,6 +421,7 @@ Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
         Should -Invoke -ModuleName AzRetirementMonitor ConvertFrom-Json -Times 1 -Exactly
         $result.Count | Should -Be 1
         $result[0].Description | Should -Be "Test feature"
+        $result[0].LearnMoreLink | Should -Be "https://learn.microsoft.com"
     }
 
     It "Should parse ExtendedProperty when the cache property is null" {
@@ -542,6 +543,119 @@ Describe "Get-AzRetirementRecommendation ExtendedProperty handling" {
 
         $result.Count | Should -Be 1
         $result[0].RecommendationId | Should -Be "recommendation-1"
+        $result[0].LearnMoreLink | Should -Be "https://learn.microsoft.com"
+    }
+
+    It "Should normalize a <Name> Az.Advisor link to null" -TestCases @(
+        @{ Name = "missing"; IncludeProperty = $false; Value = $null }
+        @{ Name = "empty"; IncludeProperty = $true; Value = "" }
+        @{ Name = "whitespace-only"; IncludeProperty = $true; Value = " `t " }
+    ) {
+        param($IncludeProperty, $Value)
+
+        $recommendation = [PSCustomObject]@{
+            ExtendedProperty = [PSCustomObject]@{
+                recommendationSubCategory = "ServiceUpgradeAndRetirement"
+                retirementFeatureName = "Test feature"
+            }
+            ShortDescriptionProblem = "Service retirement"
+            ShortDescriptionSolution = "Upgrade the service"
+            ResourceMetadataResourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+            Category = "HighAvailability"
+            Impact = "High"
+            LastUpdated = "2026-01-01"
+            Name = "recommendation-without-link"
+        }
+        if ($IncludeProperty) {
+            $recommendation | Add-Member -NotePropertyName LearnMoreLink -NotePropertyValue $Value
+        }
+        Mock -ModuleName AzRetirementMonitor Get-AzAdvisorRecommendation { $recommendation }
+
+        $result = @(Get-AzRetirementRecommendation)
+
+        $result.Count | Should -Be 1
+        $result[0].LearnMoreLink | Should -Be $null
+    }
+}
+
+Describe "Get-AzRetirementRecommendation REST LearnMoreLink handling" {
+    BeforeEach {
+        $module = Get-Module AzRetirementMonitor
+        & $module {
+            $script:AccessTokenSecureString = ConvertTo-SecureString "test-token" -AsPlainText -Force
+        }
+        Mock -ModuleName AzRetirementMonitor Test-AzRetirementMonitorToken { $true }
+    }
+
+    AfterEach {
+        $module = Get-Module AzRetirementMonitor
+        & $module { $script:AccessTokenSecureString = $null }
+    }
+
+    It "Should preserve a populated REST link in buffered and streaming output" {
+        $recommendation = [PSCustomObject]@{
+            name = "recommendation-1"
+            properties = [PSCustomObject]@{
+                category = "HighAvailability"
+                impact = "High"
+                shortDescription = [PSCustomObject]@{
+                    problem = "Service retirement"
+                    solution = "Upgrade the service"
+                }
+                extendedProperties = [PSCustomObject]@{
+                    displayName = "Test feature"
+                }
+                resourceMetadata = [PSCustomObject]@{
+                    resourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+                }
+                lastUpdated = "2026-01-01"
+                learnMoreLink = "https://learn.microsoft.com/azure/test"
+            }
+        }
+        Mock -ModuleName AzRetirementMonitor Invoke-AzPagedRequest { $recommendation }
+
+        $buffered = @(Get-AzRetirementRecommendation -UseAPI -SubscriptionId "11111111-1111-1111-1111-111111111111")
+        $streamed = @(Get-AzRetirementRecommendation -UseAPI -Stream -SubscriptionId "11111111-1111-1111-1111-111111111111")
+
+        $buffered[0].LearnMoreLink | Should -Be "https://learn.microsoft.com/azure/test"
+        $streamed[0].LearnMoreLink | Should -Be "https://learn.microsoft.com/azure/test"
+    }
+
+    It "Should normalize a <Name> REST link to null" -TestCases @(
+        @{ Name = "missing"; IncludeProperty = $false; Value = $null }
+        @{ Name = "empty"; IncludeProperty = $true; Value = "" }
+        @{ Name = "whitespace-only"; IncludeProperty = $true; Value = " `t " }
+    ) {
+        param($IncludeProperty, $Value)
+
+        $properties = @{
+            category = "HighAvailability"
+            impact = "High"
+            shortDescription = [PSCustomObject]@{
+                problem = "Service retirement"
+                solution = "Upgrade the service"
+            }
+            extendedProperties = [PSCustomObject]@{
+                displayName = "Test feature"
+            }
+            resourceMetadata = [PSCustomObject]@{
+                resourceId = "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm"
+            }
+            lastUpdated = "2026-01-01"
+        }
+        if ($IncludeProperty) {
+            $properties.learnMoreLink = $Value
+        }
+        $recommendation = [PSCustomObject]@{
+            name = "recommendation-without-link"
+            properties = [PSCustomObject]$properties
+        }
+        Mock -ModuleName AzRetirementMonitor Invoke-AzPagedRequest { $recommendation }
+
+        $result = @(Get-AzRetirementRecommendation -UseAPI -SubscriptionId "11111111-1111-1111-1111-111111111111")
+
+        $result.Count | Should -Be 1
+        $result[0].LearnMoreLink | Should -Be $null
     }
 }
 
@@ -780,6 +894,60 @@ Describe "Export-AzRetirementReport Transformation Logic" {
             
             $result = Import-Csv -Path $outputPath
             $result.Solution | Should -Be "Update needed"
+        }
+    }
+
+    Context "LearnMoreLink output" {
+        It "Should preserve a populated link in CSV, JSON, and HTML" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestResource"
+                ResourceType = "Microsoft.Test/resources"
+                Problem = "Service retirement"
+                Solution = "Upgrade the service"
+                Description = "Test feature"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "High"
+                LearnMoreLink = "https://learn.microsoft.com/azure/test"
+                ResourceLink = "https://portal.azure.com/resource"
+            }
+            $csvPath = Join-Path $script:TestOutputDir "test-link.csv"
+            $jsonPath = Join-Path $script:TestOutputDir "test-link.json"
+            $htmlPath = Join-Path $script:TestOutputDir "test-link.html"
+
+            $testRec | Export-AzRetirementReport -OutputPath $csvPath -Format CSV -Confirm:$false
+            $testRec | Export-AzRetirementReport -OutputPath $jsonPath -Format JSON -Confirm:$false
+            $testRec | Export-AzRetirementReport -OutputPath $htmlPath -Format HTML -Confirm:$false
+
+            (Import-Csv -Path $csvPath).LearnMoreLink | Should -Be "https://learn.microsoft.com/azure/test"
+            (Get-Content -Path $jsonPath -Raw | ConvertFrom-Json).LearnMoreLink | Should -Be "https://learn.microsoft.com/azure/test"
+            Get-Content -Path $htmlPath -Raw | Should -Match "<a href='https://learn\.microsoft\.com/azure/test'[^>]*>Documentation</a>"
+        }
+
+        It "Should represent a null link appropriately in CSV, JSON, and HTML" {
+            $testRec = [PSCustomObject]@{
+                ResourceName = "TestResource"
+                ResourceType = "Microsoft.Test/resources"
+                Problem = "Service retirement"
+                Solution = "Upgrade the service"
+                Description = "Test feature"
+                ResourceGroup = "test-rg"
+                SubscriptionId = "test-sub-id"
+                Impact = "High"
+                LearnMoreLink = $null
+                ResourceLink = "https://portal.azure.com/resource"
+            }
+            $csvPath = Join-Path $script:TestOutputDir "test-null-link.csv"
+            $jsonPath = Join-Path $script:TestOutputDir "test-null-link.json"
+            $htmlPath = Join-Path $script:TestOutputDir "test-null-link.html"
+
+            $testRec | Export-AzRetirementReport -OutputPath $csvPath -Format CSV -Confirm:$false
+            $testRec | Export-AzRetirementReport -OutputPath $jsonPath -Format JSON -Confirm:$false
+            $testRec | Export-AzRetirementReport -OutputPath $htmlPath -Format HTML -Confirm:$false
+
+            (Import-Csv -Path $csvPath).LearnMoreLink | Should -BeNullOrEmpty
+            (Get-Content -Path $jsonPath -Raw | ConvertFrom-Json).LearnMoreLink | Should -Be $null
+            Get-Content -Path $htmlPath -Raw | Should -Match "<td>N/A</td>"
         }
     }
 }
