@@ -222,3 +222,11 @@ Issue #68 ([BUG] Pester tests fail under Windows PowerShell 5.1):
 - Open PRs: only #74 (draft, Copilot coding agent, workflow env passthrough) — unchanged, outside remit (touches workflow files, not authored by Repo Assist).
 - No new issues to triage, no draft PR created this run.
 - Action taken: none (noop).
+
+## Run: 2026-09-14
+
+- New issue #85 ([CI] Upgrade GitHub workflows to actions/checkout v7): well-specified, actionable, already correctly labeled `ci` by owner. Pre-Sept-23-2026 Node.js 20 deprecation deadline noted.
+- Created draft PR "ci: upgrade actions/checkout to v7 in CI workflow" on branch `feature/issue-85-checkout-v7`, closes #85 (partially). Updated 3 checkout steps in `.github/workflows/ci.yml` to pinned `actions/checkout@v7.0.1` SHA (matches pattern already used in repo-assist.lock.yml/copilot-setup-steps.yml). Left `.github/workflows/publish.yml` unchanged — modifying release/PowerShell-Gallery-publishing workflows is outside remit; noted in PR body for maintainer follow-up.
+- Pester could not run in sandbox (no PSGallery network access to install module); no `.ps1`/`.psm1` files were touched by this change, so no regression risk from module code.
+- No open PRs found besides the one just created (#74 from prior runs no longer listed as open).
+- Action taken: draft PR created for #85.
