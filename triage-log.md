@@ -328,3 +328,7 @@ Issue #68 ([BUG] Pester tests fail under Windows PowerShell 5.1):
 - Open PRs: none open.
 - No new issues to triage, no draft PR created this run.
 - Action taken: none (noop).
+
+## Run: 2026-09-29
+
+- Only open readable issue is the no-op tracker; nothing to triage. Action: noop.
